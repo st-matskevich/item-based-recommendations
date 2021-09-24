@@ -1,11 +1,17 @@
 package main
 
 import (
+	"container/list"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
 )
+
+type PostSimilarity struct {
+	id         int
+	similarity float32
+}
 
 func normalizeVector(vector map[int]float32) {
 	magnitude := float32(0)
@@ -82,10 +88,10 @@ func getPostsTags() map[int]map[int]float32 {
 	return result
 }
 
-func getSimilarPosts() map[int]float32 {
+func getSimilarPosts() *list.List {
 	userProfile := getUserProfile()
 	postsTags := getPostsTags()
-	postsSimilarity := map[int]float32{}
+	topList := list.New()
 
 	similarity := float32(0)
 
@@ -97,17 +103,27 @@ func getSimilarPosts() map[int]float32 {
 				similarity += tagWeight * val
 			}
 		}
-		postsSimilarity[postID] = similarity
+
+		e := topList.PushBack(PostSimilarity{postID, similarity})
+		for e.Prev() != nil &&
+			e.Prev().Value.(PostSimilarity).similarity < e.Value.(PostSimilarity).similarity {
+			topList.MoveBefore(e, e.Prev())
+		}
+
+		//TODO: move magic "3" to consts
+		if topList.Len() > 3 {
+			topList.Remove(topList.Back())
+		}
 	}
-	return postsSimilarity
+	return topList
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint Hit: homePage")
 
-	postsSimilarity := getSimilarPosts()
-	for postID, weight := range postsSimilarity {
-		fmt.Fprintf(w, "Post %d similarity is %f\n", postID, weight)
+	topList := getSimilarPosts()
+	for e := topList.Front(); e != nil; e = e.Next() {
+		fmt.Fprintf(w, "Post %d similarity is %f\n", e.Value.(PostSimilarity).id, e.Value.(PostSimilarity).similarity)
 	}
 }
 
