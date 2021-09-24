@@ -20,43 +20,64 @@ func normalizeVector(vector map[int]float32) {
 	}
 }
 
-//mock user data
 func getUserProfile() map[int]float32 {
 	result := map[int]float32{}
 
-	result[1] = 1
-	result[2] = 0.33333
-	result[3] = 0.33333
-	result[4] = 0.33333
+	//mock data
+	response := []struct {
+		postID int
+		tagID  int
+	}{
+		{1, 1}, {1, 2},
+		{3, 1}, {3, 3},
+		{5, 1}, {5, 4},
+	}
+
+	uniquePosts := map[int]struct{}{}
+	for _, row := range response {
+		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
+		if _, ok := result[row.tagID]; !ok {
+			result[row.tagID] = 1
+		} else {
+			result[row.tagID] += 1
+		}
+		uniquePosts[row.postID] = struct{}{}
+	}
+
+	for tagID := range result {
+		result[tagID] /= float32(len(uniquePosts))
+	}
 
 	normalizeVector(result)
 
 	return result
 }
 
-//mock posts data
 func getPostsTags() map[int]map[int]float32 {
 	result := map[int]map[int]float32{}
 
-	result[2] = map[int]float32{}
-	result[2][1] = 1
-	result[2][2] = 1
-	normalizeVector(result[2])
+	//mock data
+	response := []struct {
+		postID int
+		tagID  int
+	}{
+		{2, 1}, {2, 2},
+		{4, 1}, {4, 5},
+		{6, 2}, {6, 6},
+		{7, 7}, {7, 8},
+	}
 
-	result[4] = map[int]float32{}
-	result[4][1] = 1
-	result[4][5] = 1
-	normalizeVector(result[4])
+	for _, row := range response {
+		if _, ok := result[row.postID]; !ok {
+			result[row.postID] = map[int]float32{}
+		}
 
-	result[6] = map[int]float32{}
-	result[6][6] = 1
-	result[6][2] = 1
-	normalizeVector(result[6])
+		result[row.postID][row.tagID] = 1
+	}
 
-	result[7] = map[int]float32{}
-	result[7][7] = 1
-	result[7][8] = 1
-	normalizeVector(result[7])
+	for postID := range result {
+		normalizeVector(result[postID])
+	}
 
 	return result
 }
