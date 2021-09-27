@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/st-matskevich/item-based-recommendations/model"
 )
 
 var tolerance = .00001
@@ -17,12 +18,12 @@ func TestParseUserProfile(t *testing.T) {
 	////TODO: move tests input to some binary files
 	tests := []struct {
 		name string
-		args []PostTagLink
+		args []model.PostTagLink
 		want map[int]float32
 	}{
 		{
 			name: "normal test",
-			args: []PostTagLink{
+			args: []model.PostTagLink{
 				{1, 1}, {1, 2},
 				{3, 1}, {3, 3},
 				{5, 1}, {5, 4},
@@ -46,12 +47,12 @@ func TestParsePostsTags(t *testing.T) {
 	////TODO: move tests input to some binary files
 	tests := []struct {
 		name string
-		args []PostTagLink
+		args []model.PostTagLink
 		want map[int]map[int]float32
 	}{
 		{
 			name: "normal test",
-			args: []PostTagLink{
+			args: []model.PostTagLink{
 				{2, 1}, {2, 2},
 				{4, 1}, {4, 5},
 				{6, 2}, {6, 6},

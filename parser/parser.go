@@ -1,11 +1,10 @@
 package parser
 
-import "math"
+import (
+	"math"
 
-type PostTagLink struct {
-	PostID int
-	TagID  int
-}
+	"github.com/st-matskevich/item-based-recommendations/model"
+)
 
 func normalizeVector(vector map[int]float32) {
 	magnitude := float32(0)
@@ -20,7 +19,7 @@ func normalizeVector(vector map[int]float32) {
 	}
 }
 
-func ParseUserProfile(response []PostTagLink) map[int]float32 {
+func ParseUserProfile(response []model.PostTagLink) map[int]float32 {
 	result := map[int]float32{}
 
 	uniquePosts := map[int]struct{}{}
@@ -43,7 +42,7 @@ func ParseUserProfile(response []PostTagLink) map[int]float32 {
 	return result
 }
 
-func ParsePostsTags(response []PostTagLink) map[int]map[int]float32 {
+func ParsePostsTags(response []model.PostTagLink) map[int]map[int]float32 {
 	result := map[int]map[int]float32{}
 
 	for _, row := range response {

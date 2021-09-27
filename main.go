@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
+	"github.com/st-matskevich/item-based-recommendations/db"
 	"github.com/st-matskevich/item-based-recommendations/parser"
 )
 
@@ -14,25 +17,20 @@ type PostSimilarity struct {
 	similarity float32
 }
 
-func getSimilarPosts(top int) *list.List {
-	//mock data
-	userProfileResponse := []parser.PostTagLink{
-		{1, 1}, {1, 2},
-		{3, 1}, {3, 3},
-		{5, 1}, {5, 4},
+func getSimilarPosts(user, top int) *list.List {
+	response, err := db.GetUserProfile(user)
+	if err != nil {
+		log.Printf("getSimilarPosts error: %v\n", err)
 	}
+	userProfile := parser.ParseUserProfile(response)
 
-	postsTagsResponse := []parser.PostTagLink{
-		{2, 1}, {2, 2},
-		{4, 1}, {4, 5},
-		{6, 2}, {6, 6},
-		{7, 7}, {7, 8},
+	response, err = db.GetPostsTags(user)
+	if err != nil {
+		log.Printf("getSimilarPosts error: %v\n", err)
 	}
+	postsTags := parser.ParsePostsTags(response)
 
-	userProfile := parser.ParseUserProfile(userProfileResponse)
-	postsTags := parser.ParsePostsTags(postsTagsResponse)
 	topList := list.New()
-
 	similarity := float32(0)
 
 	for postID, tagsMap := range postsTags {
@@ -60,8 +58,8 @@ func getSimilarPosts(top int) *list.List {
 func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint Hit: homePage")
 
-	//TODO: move magic "3" to consts
-	topList := getSimilarPosts(3)
+	//TODO: move magic "1", "3" to consts
+	topList := getSimilarPosts(1, 3)
 	for e := topList.Front(); e != nil; e = e.Next() {
 		fmt.Fprintf(w, "Post %d similarity is %f\n", e.Value.(PostSimilarity).id, e.Value.(PostSimilarity).similarity)
 	}
@@ -70,6 +68,16 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 func handleRequests() {
 	http.HandleFunc("/", homePage)
 	log.Fatal(http.ListenAndServe(":10000", nil))
+}
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
+
+	if err := db.OpenDB(os.Getenv("SQL_CONNECTION_STRING")); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {
