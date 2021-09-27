@@ -17,16 +17,16 @@ type PostSimilarity struct {
 	similarity float32
 }
 
-func getSimilarPosts(user, top int) *list.List {
+func getSimilarPosts(user, top int) (*list.List, error) {
 	response, err := db.GetUserProfile(user)
 	if err != nil {
-		log.Printf("getSimilarPosts error: %v\n", err)
+		return nil, err
 	}
 	userProfile := parser.ParseUserProfile(response)
 
 	response, err = db.GetPostsTags(user)
 	if err != nil {
-		log.Printf("getSimilarPosts error: %v\n", err)
+		return nil, err
 	}
 	postsTags := parser.ParsePostsTags(response)
 
@@ -52,14 +52,19 @@ func getSimilarPosts(user, top int) *list.List {
 			topList.Remove(topList.Back())
 		}
 	}
-	return topList
+	return topList, nil
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint Hit: homePage")
 
 	//TODO: move magic "1", "3" to consts
-	topList := getSimilarPosts(1, 3)
+	topList, err := getSimilarPosts(1, 3)
+	if err != nil {
+		log.Printf("getSimilarPosts error: %v\n", err)
+		return
+	}
+
 	for e := topList.Front(); e != nil; e = e.Next() {
 		fmt.Fprintf(w, "Post %d similarity is %f\n", e.Value.(PostSimilarity).id, e.Value.(PostSimilarity).similarity)
 	}
