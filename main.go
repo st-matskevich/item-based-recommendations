@@ -22,13 +22,19 @@ func getSimilarPosts(user, top int) (*list.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	userProfile := parser.ParseUserProfile(response)
+	userProfile, err := parser.ParseUserProfile(response)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err = db.GetPostsTags(user)
 	if err != nil {
 		return nil, err
 	}
-	postsTags := parser.ParsePostsTags(response)
+	postsTags, err := parser.ParsePostsTags(response)
+	if err != nil {
+		return nil, err
+	}
 
 	topList := list.New()
 	similarity := float32(0)

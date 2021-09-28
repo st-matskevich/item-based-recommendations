@@ -3,7 +3,7 @@ package parser
 import (
 	"math"
 
-	"github.com/st-matskevich/item-based-recommendations/model"
+	"github.com/st-matskevich/item-based-recommendations/db/model"
 )
 
 func normalizeVector(vector map[int]float32) {
@@ -19,18 +19,25 @@ func normalizeVector(vector map[int]float32) {
 	}
 }
 
-func ParseUserProfile(response []model.PostTagLink) map[int]float32 {
+func ParseUserProfile(fetcher model.PostTagLinkFetcher) (map[int]float32, error) {
 	result := map[int]float32{}
 
 	uniquePosts := map[int]struct{}{}
-	for _, row := range response {
+	row := model.PostTagLink{}
+
+	ok, err := fetcher.Next(&row)
+	for ; ok; ok, err = fetcher.Next(&row) {
 		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
-		if _, ok := result[row.TagID]; !ok {
+		if _, contains := result[row.TagID]; !contains {
 			result[row.TagID] = 1
 		} else {
 			result[row.TagID] += 1
 		}
 		uniquePosts[row.PostID] = struct{}{}
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	for tagID := range result {
@@ -39,23 +46,29 @@ func ParseUserProfile(response []model.PostTagLink) map[int]float32 {
 
 	normalizeVector(result)
 
-	return result
+	return result, nil
 }
 
-func ParsePostsTags(response []model.PostTagLink) map[int]map[int]float32 {
+func ParsePostsTags(fetcher model.PostTagLinkFetcher) (map[int]map[int]float32, error) {
 	result := map[int]map[int]float32{}
 
-	for _, row := range response {
-		if _, ok := result[row.PostID]; !ok {
+	row := model.PostTagLink{}
+	ok, err := fetcher.Next(&row)
+	for ; ok; ok, err = fetcher.Next(&row) {
+		if _, contains := result[row.PostID]; !contains {
 			result[row.PostID] = map[int]float32{}
 		}
 
 		result[row.PostID][row.TagID] = 1
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	for postID := range result {
 		normalizeVector(result[postID])
 	}
 
-	return result
+	return result, nil
 }
