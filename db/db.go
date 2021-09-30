@@ -4,16 +4,22 @@ import (
 	"database/sql"
 
 	_ "github.com/lib/pq"
-	"github.com/st-matskevich/item-based-recommendations/db/model"
 )
 
-var db *sql.DB
+type PostTagLink struct {
+	PostID int
+	TagID  int
+}
 
-type SQLPostTagLinkFetcher struct {
+type PostTagLinkReader interface {
+	Next(*PostTagLink) (bool, error)
+}
+
+type SQLPostTagLinkReader struct {
 	rows *sql.Rows
 }
 
-func (fetcher *SQLPostTagLinkFetcher) Next(data *model.PostTagLink) (bool, error) {
+func (fetcher *SQLPostTagLinkReader) Next(data *PostTagLink) (bool, error) {
 	if fetcher.rows.Next() {
 		err := fetcher.rows.Scan(&data.PostID, &data.TagID)
 		return err == nil, err
@@ -21,29 +27,44 @@ func (fetcher *SQLPostTagLinkFetcher) Next(data *model.PostTagLink) (bool, error
 	return false, fetcher.rows.Err()
 }
 
+type ProfilesFetcher interface {
+	GetUserProfile(id int) (PostTagLinkReader, error)
+	GetPostsTags(id int) (PostTagLinkReader, error)
+}
+
+type SQLClient struct {
+	db *sql.DB
+}
+
+func (client *SQLClient) GetUserProfile(id int) (PostTagLinkReader, error) {
+	rows, err := client.db.Query("SELECT likes.post_id, tag_id FROM likes JOIN hashtags ON likes.post_id = hashtags.post_id WHERE user_id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SQLPostTagLinkReader{rows: rows}, nil
+}
+
+func (client *SQLClient) GetPostsTags(id int) (PostTagLinkReader, error) {
+	rows, err := client.db.Query("SELECT hashtags.post_id, tag_id FROM likes RIGHT JOIN hashtags ON likes.post_id = hashtags.post_id AND user_id = $1 WHERE user_id IS NULL", id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SQLPostTagLinkReader{rows: rows}, nil
+}
+
+var client *SQLClient
+
+func GetSQLClient() *SQLClient {
+	return client
+}
+
 func OpenDB(connectionString string) error {
 	d, err := sql.Open("postgres", connectionString)
 	if err == nil {
-		db = d
-		err = db.Ping()
+		client = &SQLClient{db: d}
+		err = client.db.Ping()
 	}
 	return err
-}
-
-func GetUserProfile(id int) (*SQLPostTagLinkFetcher, error) {
-	rows, err := db.Query("SELECT likes.post_id, tag_id FROM likes JOIN hashtags ON likes.post_id = hashtags.post_id WHERE user_id = $1", id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLPostTagLinkFetcher{rows: rows}, nil
-}
-
-func GetPostsTags(id int) (*SQLPostTagLinkFetcher, error) {
-	rows, err := db.Query("SELECT hashtags.post_id, tag_id FROM likes RIGHT JOIN hashtags ON likes.post_id = hashtags.post_id AND user_id = $1 WHERE user_id IS NULL", id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLPostTagLinkFetcher{rows: rows}, nil
 }
