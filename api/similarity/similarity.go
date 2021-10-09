@@ -1,15 +1,15 @@
 package similarity
 
 import (
-	"container/list"
 	"math"
 
 	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
+//TODO: similarity field should be private in production
 type PostSimilarity struct {
-	Id         int
-	Similarity float32
+	Id         int     `json:"id"`
+	Similarity float32 `json:"similarity"`
 }
 
 func normalizeVector(vector map[int]float32) {
@@ -79,8 +79,8 @@ func readPostsTags(reader db.PostTagLinkReader) (map[int]map[int]float32, error)
 	return result, nil
 }
 
-func GetSimilarPosts(fetcher db.ProfilesFetcher, user, top int) (*list.List, error) {
-	response, err := fetcher.GetUserProfile(user)
+func GetSimilarPosts(fetcher db.ProfilesFetcher, userId, topSize int) ([]PostSimilarity, error) {
+	response, err := fetcher.GetUserProfile(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func GetSimilarPosts(fetcher db.ProfilesFetcher, user, top int) (*list.List, err
 		return nil, err
 	}
 
-	response, err = fetcher.GetPostsTags(user)
+	response, err = fetcher.GetPostsTags(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func GetSimilarPosts(fetcher db.ProfilesFetcher, user, top int) (*list.List, err
 		return nil, err
 	}
 
-	topList := list.New()
+	result := []PostSimilarity{}
 	similarity := float32(0)
 
 	for postID, tagsMap := range postsTags {
@@ -110,15 +110,17 @@ func GetSimilarPosts(fetcher db.ProfilesFetcher, user, top int) (*list.List, err
 			}
 		}
 
-		e := topList.PushBack(PostSimilarity{postID, similarity})
-		for e.Prev() != nil &&
-			e.Prev().Value.(PostSimilarity).Similarity < e.Value.(PostSimilarity).Similarity {
-			topList.MoveBefore(e, e.Prev())
+		if len(result) < topSize {
+			result = append(result, PostSimilarity{postID, similarity})
+		} else if similarity > result[len(result)-1].Similarity {
+			result[len(result)-1] = PostSimilarity{postID, similarity}
+		} else {
+			continue
 		}
 
-		if topList.Len() > top {
-			topList.Remove(topList.Back())
+		for idx := len(result) - 1; idx > 0 && result[idx].Similarity > result[idx-1].Similarity; idx-- {
+			result[idx], result[idx-1] = result[idx-1], result[idx]
 		}
 	}
-	return topList, nil
+	return result, nil
 }

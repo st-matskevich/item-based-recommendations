@@ -1,34 +1,50 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/st-matskevich/item-based-recommendations/api/similarity"
 	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
-func homePage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Endpoint Hit: homePage")
+const MAX_RECOMMENDED_POSTS = 5
 
-	//TODO: move magic "1", "3" to consts
-	topList, err := similarity.GetSimilarPosts(db.GetSQLClient(), 1, 3)
+func similarityRequest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	vars := mux.Vars(r)
+	userId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		log.Printf("GetSimilarPosts error: %v\n", err)
+		w.WriteHeader(400)
 		return
 	}
 
-	for e := topList.Front(); e != nil; e = e.Next() {
-		fmt.Fprintf(w, "Post %d similarity is %f\n", e.Value.(similarity.PostSimilarity).Id, e.Value.(similarity.PostSimilarity).Similarity)
+	topList, err := similarity.GetSimilarPosts(db.GetSQLClient(), userId, MAX_RECOMMENDED_POSTS)
+	if err != nil {
+		log.Printf("GetSimilarPosts error: %v\n", err)
+		w.WriteHeader(500)
+		return
 	}
+
+	err = json.NewEncoder(w).Encode(topList)
+	if err != nil {
+		log.Printf("GetSimilarPosts error: %v\n", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(200)
 }
 
 func handleRequests() {
-	http.HandleFunc("/", homePage)
-	log.Fatal(http.ListenAndServe(":10000", nil))
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/recommendations/{id}", similarityRequest)
+	log.Fatal(http.ListenAndServe(":10000", router))
 }
 
 func init() {
@@ -37,7 +53,7 @@ func init() {
 	}
 
 	if err := db.OpenDB(os.Getenv("SQL_CONNECTION_STRING")); err != nil {
-		log.Fatal(err)
+		log.Fatalf("SQL error: %v", err)
 	}
 }
 

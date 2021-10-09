@@ -193,15 +193,8 @@ func TestGetSimilarPosts(t *testing.T) {
 				t.Fatalf("GetSimilarPosts() error %v, wanted %v", err, test.err)
 			}
 
-			listPos := int(0)
-			for e := result.Front(); e != nil; e = e.Next() {
-				if listPos >= len(test.want) {
-					t.Fatalf("GetSimilarPosts() result size incorrect")
-				}
-				if !cmp.Equal(e.Value.(PostSimilarity), test.want[listPos], opt) {
-					t.Fatalf("GetSimilarPosts() result at [%d] %v, wanted %v", listPos, e.Value.(PostSimilarity), test.want[listPos])
-				}
-				listPos++
+			if !cmp.Equal(result, test.want, opt) {
+				t.Fatalf("GetSimilarPosts() result %v, wanted %v", result, test.want)
 			}
 		})
 	}
