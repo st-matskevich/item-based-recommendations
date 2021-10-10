@@ -24,7 +24,9 @@ type Route struct {
 func Logger(inner Handler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
+		//TODO: all handlers will probably response with JSON
+		//maybe "Content-Type": "application/json; charset=UTF-8"
+		//should be set here?
 		response := inner(w, r)
 
 		log.Printf(
@@ -37,7 +39,11 @@ func Logger(inner Handler, name string) http.Handler {
 		)
 		if response.err != nil {
 			log.Printf("%s error: %v", name, response.err)
+			w.WriteHeader(response.code)
 		}
+		//TODO: if err not nil, than response was written by handler
+		//maybe handlers should return their response object as interface{}
+		//and sending responce body and codes should be fully handled here?
 	})
 }
 
