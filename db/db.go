@@ -28,15 +28,15 @@ func (fetcher *SQLPostTagLinkReader) Next(data *PostTagLink) (bool, error) {
 }
 
 type ProfilesFetcher interface {
-	GetUserProfile(id int) (PostTagLinkReader, error)
-	GetPostsTags(id int) (PostTagLinkReader, error)
+	GetUserProfile(id string) (PostTagLinkReader, error)
+	GetPostsTags(id string) (PostTagLinkReader, error)
 }
 
 type SQLClient struct {
 	db *sql.DB
 }
 
-func (client *SQLClient) GetUserProfile(id int) (PostTagLinkReader, error) {
+func (client *SQLClient) GetUserProfile(id string) (PostTagLinkReader, error) {
 	rows, err := client.db.Query("SELECT likes.post_id, tag_id FROM likes JOIN hashtags ON likes.post_id = hashtags.post_id WHERE user_id = $1", id)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (client *SQLClient) GetUserProfile(id int) (PostTagLinkReader, error) {
 	return &SQLPostTagLinkReader{rows: rows}, nil
 }
 
-func (client *SQLClient) GetPostsTags(id int) (PostTagLinkReader, error) {
+func (client *SQLClient) GetPostsTags(id string) (PostTagLinkReader, error) {
 	rows, err := client.db.Query("SELECT hashtags.post_id, tag_id FROM likes RIGHT JOIN hashtags ON likes.post_id = hashtags.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 	if err != nil {
 		return nil, err

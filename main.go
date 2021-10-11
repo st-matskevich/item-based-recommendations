@@ -8,11 +8,16 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/st-matskevich/item-based-recommendations/api"
 	"github.com/st-matskevich/item-based-recommendations/db"
+	"github.com/st-matskevich/item-based-recommendations/firebase"
 )
+
+const SERVER_ADDR = ":10000"
 
 func startRouter() {
 	router := api.MakeRouter()
-	log.Fatal(http.ListenAndServe(":10000", router))
+
+	log.Printf("Listening on %s", SERVER_ADDR)
+	log.Fatal(http.ListenAndServe(SERVER_ADDR, router))
 }
 
 func init() {
@@ -22,6 +27,10 @@ func init() {
 
 	if err := db.OpenDB(os.Getenv("SQL_CONNECTION_STRING")); err != nil {
 		log.Fatalf("SQL error: %v", err)
+	}
+
+	if err := firebase.OpenFirebaseClient(); err != nil {
+		log.Fatalf("Firebase error: %v", err)
 	}
 }
 

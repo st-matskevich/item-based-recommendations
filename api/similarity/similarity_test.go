@@ -1,4 +1,4 @@
-////TODO: move tests input to some binary files
+//TODO: move tests input to some binary files
 package similarity
 
 import (
@@ -35,11 +35,11 @@ type FakeProfilesFetcher struct {
 	err                                error
 }
 
-func (client *FakeProfilesFetcher) GetUserProfile(id int) (db.PostTagLinkReader, error) {
+func (client *FakeProfilesFetcher) GetUserProfile(id string) (db.PostTagLinkReader, error) {
 	return &client.userProfileReader, client.err
 }
 
-func (client *FakeProfilesFetcher) GetPostsTags(id int) (db.PostTagLinkReader, error) {
+func (client *FakeProfilesFetcher) GetPostsTags(id string) (db.PostTagLinkReader, error) {
 	return &client.postsTagsReader, client.err
 }
 
@@ -149,11 +149,12 @@ func TestReadPostsTags(t *testing.T) {
 
 func TestGetSimilarPosts(t *testing.T) {
 	tests := []struct {
-		name      string
-		fetcher   FakeProfilesFetcher
-		user, top int
-		want      []PostSimilarity
-		err       error
+		name    string
+		fetcher FakeProfilesFetcher
+		user    string
+		top     int
+		want    []PostSimilarity
+		err     error
 	}{
 		{
 			name: "hand-made test",
@@ -176,7 +177,7 @@ func TestGetSimilarPosts(t *testing.T) {
 					last: 0,
 				},
 			},
-			user: 1,
+			user: "1",
 			top:  3,
 			want: []PostSimilarity{{2, 0.816496}, {4, 0.612372}, {6, 0.204124}},
 			err:  nil,

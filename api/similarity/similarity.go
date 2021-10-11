@@ -79,7 +79,7 @@ func readPostsTags(reader db.PostTagLinkReader) (map[int]map[int]float32, error)
 	return result, nil
 }
 
-func GetSimilarPosts(fetcher db.ProfilesFetcher, userId, topSize int) ([]PostSimilarity, error) {
+func GetSimilarPosts(fetcher db.ProfilesFetcher, userId string, topSize int) ([]PostSimilarity, error) {
 	response, err := fetcher.GetUserProfile(userId)
 	if err != nil {
 		return nil, err

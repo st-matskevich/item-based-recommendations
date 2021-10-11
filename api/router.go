@@ -68,7 +68,7 @@ var routes = []Route{
 	{
 		"Recommendations",
 		"GET",
-		"/recommendations/{id}",
+		"/recommendations",
 		similarityRequest,
 	},
 }
