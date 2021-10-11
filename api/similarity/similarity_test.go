@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
 var tolerance = .00001
@@ -16,11 +15,11 @@ var opt = cmp.Comparer(func(x, y float32) bool {
 })
 
 type FakePostTagLinkReader struct {
-	rows []db.PostTagLink
+	rows []PostTagLink
 	last int
 }
 
-func (fetcher *FakePostTagLinkReader) Next(data *db.PostTagLink) (bool, error) {
+func (fetcher *FakePostTagLinkReader) Next(data *PostTagLink) (bool, error) {
 	result := false
 	if fetcher.last < len(fetcher.rows) {
 		*data = fetcher.rows[fetcher.last]
@@ -28,19 +27,6 @@ func (fetcher *FakePostTagLinkReader) Next(data *db.PostTagLink) (bool, error) {
 		result = true
 	}
 	return result, nil
-}
-
-type FakeProfilesFetcher struct {
-	userProfileReader, postsTagsReader FakePostTagLinkReader
-	err                                error
-}
-
-func (client *FakeProfilesFetcher) GetUserProfile(id string) (db.PostTagLinkReader, error) {
-	return &client.userProfileReader, client.err
-}
-
-func (client *FakeProfilesFetcher) GetPostsTags(id string) (db.PostTagLinkReader, error) {
-	return &client.postsTagsReader, client.err
 }
 
 func TestNormalizeVector(t *testing.T) {
@@ -78,7 +64,7 @@ func TestReadUserProfile(t *testing.T) {
 		{
 			name: "hand-made test",
 			args: FakePostTagLinkReader{
-				rows: []db.PostTagLink{
+				rows: []PostTagLink{
 					{1, 1}, {1, 2},
 					{3, 1}, {3, 3},
 					{5, 1}, {5, 4},
@@ -115,7 +101,7 @@ func TestReadPostsTags(t *testing.T) {
 		{
 			name: "hand-made test",
 			args: FakePostTagLinkReader{
-				rows: []db.PostTagLink{
+				rows: []PostTagLink{
 					{2, 1}, {2, 2},
 					{4, 1}, {4, 5},
 					{6, 2}, {6, 6},
@@ -150,7 +136,7 @@ func TestReadPostsTags(t *testing.T) {
 func TestGetSimilarPosts(t *testing.T) {
 	tests := []struct {
 		name    string
-		fetcher FakeProfilesFetcher
+		readers ProfilesReaders
 		user    string
 		top     int
 		want    []PostSimilarity
@@ -158,17 +144,17 @@ func TestGetSimilarPosts(t *testing.T) {
 	}{
 		{
 			name: "hand-made test",
-			fetcher: FakeProfilesFetcher{
-				userProfileReader: FakePostTagLinkReader{
-					rows: []db.PostTagLink{
+			readers: ProfilesReaders{
+				UserProfileReader: &FakePostTagLinkReader{
+					rows: []PostTagLink{
 						{1, 1}, {1, 2},
 						{3, 1}, {3, 3},
 						{5, 1}, {5, 4},
 					},
 					last: 0,
 				},
-				postsTagsReader: FakePostTagLinkReader{
-					rows: []db.PostTagLink{
+				PostsTagsReader: &FakePostTagLinkReader{
+					rows: []PostTagLink{
 						{2, 1}, {2, 2},
 						{4, 1}, {4, 5},
 						{6, 2}, {6, 6},
@@ -177,7 +163,6 @@ func TestGetSimilarPosts(t *testing.T) {
 					last: 0,
 				},
 			},
-			user: "1",
 			top:  3,
 			want: []PostSimilarity{{2, 0.816496}, {4, 0.612372}, {6, 0.204124}},
 			err:  nil,
@@ -185,10 +170,7 @@ func TestGetSimilarPosts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			//TODO: probably should change this errors logic
-			test.fetcher.err = test.err
-
-			result, err := GetSimilarPosts(&test.fetcher, test.user, test.top)
+			result, err := GetSimilarPosts(&test.readers, test.top)
 
 			if !cmp.Equal(err, test.err, opt) {
 				t.Fatalf("GetSimilarPosts() error %v, wanted %v", err, test.err)

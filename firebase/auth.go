@@ -7,10 +7,6 @@ import (
 	"firebase.google.com/go/auth"
 )
 
-type AuthProvider interface {
-	Verify(authorizationHeader string) (string, error)
-}
-
 type FirebaseAuth struct {
 	fbAuth *auth.Client
 }

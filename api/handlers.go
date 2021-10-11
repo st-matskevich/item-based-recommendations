@@ -19,7 +19,22 @@ func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
 		return HandlerResponse{400, err}
 	}
 
-	topList, err := similarity.GetSimilarPosts(db.GetSQLClient(), uid, MAX_RECOMMENDED_POSTS)
+	profileReader, err := similarity.GetUserProfileReader(db.GetSQLClient(), uid)
+	if err != nil {
+		return HandlerResponse{500, err}
+	}
+
+	postsReader, err := similarity.GetPostsTagsReader(db.GetSQLClient(), uid)
+	if err != nil {
+		return HandlerResponse{500, err}
+	}
+
+	readers := similarity.ProfilesReaders{
+		UserProfileReader: profileReader,
+		PostsTagsReader:   postsReader,
+	}
+
+	topList, err := similarity.GetSimilarPosts(&readers, MAX_RECOMMENDED_POSTS)
 	if err != nil {
 		return HandlerResponse{500, err}
 	}
