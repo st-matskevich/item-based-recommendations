@@ -17,5 +17,5 @@
 # Firebase private key
 firebase-key.json
 
-#Project env files
+# Project env files
 *.env
