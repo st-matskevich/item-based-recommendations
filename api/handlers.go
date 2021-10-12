@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/st-matskevich/item-based-recommendations/api/similarity"
@@ -12,21 +11,19 @@ import (
 const MAX_RECOMMENDED_POSTS = 5
 
 func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
-		return HandlerResponse{400, err}
+		return HandlerResponse{http.StatusBadRequest, CreateErrorMessage("AUTHORIZATION_ERROR"), err}
 	}
 
 	profileReader, err := similarity.GetUserProfileReader(db.GetSQLClient(), uid)
 	if err != nil {
-		return HandlerResponse{500, err}
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_QUERY_ERROR"), err}
 	}
 
 	postsReader, err := similarity.GetPostsTagsReader(db.GetSQLClient(), uid)
 	if err != nil {
-		return HandlerResponse{500, err}
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_QUERY_ERROR"), err}
 	}
 
 	readers := similarity.ProfilesReaders{
@@ -36,12 +33,8 @@ func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
 
 	topList, err := similarity.GetSimilarPosts(&readers, MAX_RECOMMENDED_POSTS)
 	if err != nil {
-		return HandlerResponse{500, err}
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_READ_ERROR"), err}
 	}
 
-	err = json.NewEncoder(w).Encode(topList)
-	if err != nil {
-		return HandlerResponse{500, err}
-	}
-	return HandlerResponse{200, nil}
+	return HandlerResponse{http.StatusOK, topList, nil}
 }
