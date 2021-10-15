@@ -39,7 +39,7 @@ type ProfilesReaders struct {
 }
 
 func GetUserProfileReader(client *db.SQLClient, id string) (PostTagLinkReader, error) {
-	rows, err := client.Query("SELECT likes.post_id, tag_id FROM likes JOIN hashtags ON likes.post_id = hashtags.post_id WHERE user_id = $1", id)
+	rows, err := client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func GetUserProfileReader(client *db.SQLClient, id string) (PostTagLinkReader, e
 }
 
 func GetPostsTagsReader(client *db.SQLClient, id string) (PostTagLinkReader, error) {
-	rows, err := client.Query("SELECT hashtags.post_id, tag_id FROM likes RIGHT JOIN hashtags ON likes.post_id = hashtags.post_id AND user_id = $1 WHERE user_id IS NULL", id)
+	rows, err := client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 	if err != nil {
 		return nil, err
 	}
