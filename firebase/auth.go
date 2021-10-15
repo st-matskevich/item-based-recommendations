@@ -1,3 +1,7 @@
+//TODO: maybe mocks should be implemented there?
+//like in api packages
+// - sql reader <- mockable
+// - logic
 package firebase
 
 import (
