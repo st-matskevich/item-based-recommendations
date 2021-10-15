@@ -17,6 +17,10 @@ func (client *SQLClient) Query(query string, args ...interface{}) (*sql.Rows, er
 	return client.db.Query(query, args...)
 }
 
+func (client *SQLClient) QueryRow(query string, args ...interface{}) *sql.Row {
+	return client.db.QueryRow(query, args...)
+}
+
 func GetSQLClient() *SQLClient {
 	return client
 }

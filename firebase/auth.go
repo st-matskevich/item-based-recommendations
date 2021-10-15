@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"firebase.google.com/go/auth"
+	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
 type FirebaseAuth struct {
@@ -13,15 +14,22 @@ type FirebaseAuth struct {
 
 var authClient *FirebaseAuth
 
-func (client *FirebaseAuth) Verify(authorizationHeader string) (string, error) {
+func mapFirebaseUIDToUserID(UID string) (int, error) {
+	result := -1
+	err := db.GetSQLClient().QueryRow("SELECT user_id FROM users WHERE firebase_uid = $1", UID).Scan(&result)
+	return result, err
+}
+
+func (client *FirebaseAuth) Verify(authorizationHeader string) (int, error) {
+	result := -1
 	tokenString := strings.TrimSpace(strings.Replace(authorizationHeader, "Bearer", "", 1))
 	token, err := client.fbAuth.VerifyIDToken(context.Background(), tokenString)
 
 	if err != nil {
-		return "", err
-	} else {
-		return token.UID, nil
+		return result, err
 	}
+
+	return mapFirebaseUIDToUserID(token.UID)
 }
 
 func GetFirebaseAuth() *FirebaseAuth {

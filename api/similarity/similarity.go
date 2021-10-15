@@ -38,7 +38,7 @@ type ProfilesReaders struct {
 	UserProfileReader, PostsTagsReader PostTagLinkReader
 }
 
-func GetUserProfileReader(client *db.SQLClient, id string) (PostTagLinkReader, error) {
+func GetUserProfileReader(client *db.SQLClient, id int) (PostTagLinkReader, error) {
 	rows, err := client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func GetUserProfileReader(client *db.SQLClient, id string) (PostTagLinkReader, e
 	return &SQLPostTagLinkReader{rows: rows}, nil
 }
 
-func GetPostsTagsReader(client *db.SQLClient, id string) (PostTagLinkReader, error) {
+func GetPostsTagsReader(client *db.SQLClient, id int) (PostTagLinkReader, error) {
 	rows, err := client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 	if err != nil {
 		return nil, err
