@@ -18,7 +18,7 @@ type Handler func(http.ResponseWriter, *http.Request) HandlerResponse
 
 type Route struct {
 	Name        string
-	Method      string
+	Methods     []string
 	Pattern     string
 	HandlerFunc Handler
 }
@@ -34,9 +34,25 @@ func CreateErrorMessage(code string) ErrorResponse {
 	return ErrorResponse{ErrorMessage{code}}
 }
 
+func handleCORS(w http.ResponseWriter, r *http.Request) bool {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
+}
+
 func BaseHandler(inner Handler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+
+		//TODO: this should be removed in prod
+		if handleCORS(w, r) {
+			return
+		}
+
 		response := inner(w, r)
 
 		log.Printf(
@@ -69,7 +85,7 @@ func MakeRouter() *mux.Router {
 		handler := BaseHandler(route.HandlerFunc, route.Name)
 
 		router.
-			Methods(route.Method).
+			Methods(route.Methods...).
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(handler)
@@ -81,7 +97,7 @@ func MakeRouter() *mux.Router {
 var routes = []Route{
 	{
 		"Recommendations",
-		"GET",
+		[]string{"GET", "OPTIONS"},
 		"/recommendations",
 		similarityRequest,
 	},
