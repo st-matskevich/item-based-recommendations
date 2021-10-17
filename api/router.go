@@ -96,6 +96,12 @@ var routes = []Route{
 		"Recommendations",
 		"GET",
 		"/recommendations",
-		similarityRequest,
+		getRecommendationsHandler,
+	},
+	{
+		"Profile",
+		"GET",
+		"/profile",
+		getUserProfileHandler,
 	},
 }

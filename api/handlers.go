@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/st-matskevich/item-based-recommendations/api/profile"
 	"github.com/st-matskevich/item-based-recommendations/api/similarity"
 	"github.com/st-matskevich/item-based-recommendations/db"
 	"github.com/st-matskevich/item-based-recommendations/firebase"
@@ -10,7 +11,7 @@ import (
 
 const MAX_RECOMMENDED_POSTS = 5
 
-func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
+func getRecommendationsHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
 		return HandlerResponse{http.StatusBadRequest, CreateErrorMessage("AUTHORIZATION_ERROR"), err}
@@ -37,6 +38,25 @@ func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
 	}
 
 	return HandlerResponse{http.StatusOK, topList, nil}
+}
+
+func getUserProfileHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
+	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+	if err != nil {
+		return HandlerResponse{http.StatusBadRequest, CreateErrorMessage("AUTHORIZATION_ERROR"), err}
+	}
+
+	reader, err := profile.GetUserProfileReader(db.GetSQLClient(), uid)
+	if err != nil {
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_QUERY_ERROR"), err}
+	}
+
+	profile, err := profile.GetUserProfile(reader)
+	if err != nil {
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_READ_ERROR"), err}
+	}
+
+	return HandlerResponse{http.StatusOK, profile, nil}
 }
 
 func corsHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
