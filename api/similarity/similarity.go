@@ -25,7 +25,7 @@ type ProfilesReaders struct {
 }
 
 func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query("SELECT main_shard.likes.post_id, tag_id FROM main_shard.likes JOIN main_shard.post_tag ON main_shard.likes.post_id = main_shard.post_tag.post_id WHERE user_id = $1", id)
+	return client.Query("SELECT main_shard.post_tag.post_id, tag_id FROM main_shard.likes JOIN main_shard.post_tag ON main_shard.likes.post_id = main_shard.post_tag.post_id WHERE user_id = $1", id)
 }
 
 func getPostsTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
