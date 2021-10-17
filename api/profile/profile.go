@@ -28,7 +28,7 @@ func getUserProfile(reader db.ResponseReader) (UserProfile, error) {
 	return result, err
 }
 
-func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
@@ -52,7 +52,7 @@ func setUserProfile(client *db.SQLClient, id int, profile UserProfile) error {
 	return err
 }
 
-func SetUserProfileHandler(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)

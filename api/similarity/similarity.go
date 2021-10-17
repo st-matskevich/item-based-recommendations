@@ -139,7 +139,7 @@ func getSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, er
 
 const MAX_RECOMMENDED_POSTS = 5
 
-func GetRecommendationsHandler(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetRecommendations(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)

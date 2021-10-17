@@ -62,7 +62,7 @@ func MakeRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	//TODO: this should be removed in prod
-	router.Methods("OPTIONS").Handler(BaseHandler(utils.CORSHandler, "CORS"))
+	router.Methods("OPTIONS").Handler(BaseHandler(utils.HandleCORS, "CORS"))
 
 	for _, route := range routes {
 
@@ -83,18 +83,18 @@ var routes = []Route{
 		"Get Recommendations",
 		"GET",
 		"/recommendations",
-		similarity.GetRecommendationsHandler,
+		similarity.HandleGetRecommendations,
 	},
 	{
 		"Get User Profile",
 		"GET",
 		"/profile",
-		profile.GetUserProfileHandler,
+		profile.HandleGetUserProfile,
 	},
 	{
 		"Set User Profile",
 		"POST",
 		"/profile",
-		profile.SetUserProfileHandler,
+		profile.HandleSetUserProfile,
 	},
 }

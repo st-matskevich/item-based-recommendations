@@ -20,6 +20,6 @@ func MakeHandlerResponse(code int, response interface{}, err error) HandlerRespo
 	return HandlerResponse{code, response, err}
 }
 
-func CORSHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
+func HandleCORS(w http.ResponseWriter, r *http.Request) HandlerResponse {
 	return HandlerResponse{http.StatusOK, struct{}{}, nil}
 }
