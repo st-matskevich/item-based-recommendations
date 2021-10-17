@@ -33,7 +33,7 @@ func CreateErrorMessage(code string) ErrorMessage {
 
 func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 }
 
 func BaseHandler(inner Handler, name string) http.Handler {
@@ -90,15 +90,21 @@ func MakeRouter() *mux.Router {
 
 var routes = []Route{
 	{
-		"Recommendations",
+		"Get Recommendations",
 		"GET",
 		"/recommendations",
 		getRecommendationsHandler,
 	},
 	{
-		"Profile",
+		"Get User Profile",
 		"GET",
 		"/profile",
 		getUserProfileHandler,
+	},
+	{
+		"Set User Profile",
+		"POST",
+		"/profile",
+		setUserProfileHandler,
 	},
 }

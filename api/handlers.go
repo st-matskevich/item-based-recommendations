@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/st-matskevich/item-based-recommendations/api/profile"
@@ -57,6 +58,26 @@ func getUserProfileHandler(w http.ResponseWriter, r *http.Request) HandlerRespon
 	}
 
 	return HandlerResponse{http.StatusOK, profile, nil}
+}
+
+func setUserProfileHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
+	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+	if err != nil {
+		return HandlerResponse{http.StatusBadRequest, CreateErrorMessage("AUTHORIZATION_ERROR"), err}
+	}
+
+	input := profile.UserProfile{}
+	err = json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		return HandlerResponse{http.StatusBadRequest, CreateErrorMessage("DECODER_ERROR"), err}
+	}
+
+	err = profile.SetUserProfile(db.GetSQLClient(), uid, input)
+	if err != nil {
+		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_READ_ERROR"), err}
+	}
+
+	return HandlerResponse{http.StatusOK, struct{}{}, nil}
 }
 
 func corsHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {

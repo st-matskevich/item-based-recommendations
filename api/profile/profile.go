@@ -1,10 +1,14 @@
 package profile
 
-import "github.com/st-matskevich/item-based-recommendations/db"
+import (
+	"errors"
+
+	"github.com/st-matskevich/item-based-recommendations/db"
+)
 
 type UserProfile struct {
-	name       string
-	isCustomer bool
+	Name       string `json:"name"`
+	IsCustomer bool   `json:"customer"`
 }
 
 func GetUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
@@ -13,6 +17,14 @@ func GetUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, erro
 
 func GetUserProfile(reader db.ResponseReader) (UserProfile, error) {
 	result := UserProfile{}
-	_, err := reader.Next(&result.name, &result.isCustomer)
+	found, err := reader.Next(&result.Name, &result.IsCustomer)
+	if !found && err == nil {
+		err = errors.New("db has not returned any rows")
+	}
 	return result, err
+}
+
+func SetUserProfile(client *db.SQLClient, id int, profile UserProfile) error {
+	_, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
+	return err
 }
