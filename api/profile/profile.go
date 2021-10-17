@@ -15,7 +15,7 @@ type UserProfile struct {
 	IsCustomer bool   `json:"customer"`
 }
 
-func getUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
 	return client.Query("SELECT name, is_customer FROM users WHERE user_id = $1", id)
 }
 
@@ -47,7 +47,7 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 	return utils.MakeHandlerResponse(http.StatusOK, profile, nil)
 }
 
-func setUserProfile(client *db.SQLClient, id int, profile UserProfile) error {
+func setUserProfile(client *db.SQLClient, id int64, profile UserProfile) error {
 	_, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
 	return err
 }

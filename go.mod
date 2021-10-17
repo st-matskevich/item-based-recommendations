@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	firebase.google.com/go v3.13.0+incompatible
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0

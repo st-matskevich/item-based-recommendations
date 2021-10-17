@@ -1,6 +1,6 @@
-CREATE TABLE post_tag(post_id INT, tag_id INT);
-CREATE TABLE likes(user_id INT, post_id INT);
-CREATE TABLE users(user_id SERIAL, firebase_uid VARCHAR(32));
+CREATE TABLE post_tag(post_id BIGINT NOT NULL, tag_id BIGINT NOT NULL);
+CREATE TABLE likes(user_id BIGINT NOT NULL, post_id BIGINT NOT NULL);
+CREATE TABLE users(user_id BIGINT NOT NULL, firebase_uid VARCHAR(32) NOT NULL);
 
 --add testing data
 INSERT INTO likes(user_id, post_id) VALUES (1, 1), (1, 3), (1, 5);

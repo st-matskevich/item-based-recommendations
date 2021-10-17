@@ -11,28 +11,28 @@ import (
 
 //TODO: similarity field should be private in production
 type PostSimilarity struct {
-	Id         int     `json:"id"`
+	Id         int64   `json:"id"`
 	Similarity float32 `json:"similarity"`
 }
 
 type PostTagLink struct {
-	PostID int
-	TagID  int
+	PostID int64
+	TagID  int64
 }
 
 type ProfilesReaders struct {
 	UserProfileReader, PostsTagsReader db.ResponseReader
 }
 
-func getUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
 	return client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
 }
 
-func getPostsTagsReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+func getPostsTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
 	return client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 }
 
-func normalizeVector(vector map[int]float32) {
+func normalizeVector(vector map[int64]float32) {
 	magnitude := float32(0)
 	for _, val := range vector {
 		magnitude += val * val
@@ -45,10 +45,10 @@ func normalizeVector(vector map[int]float32) {
 	}
 }
 
-func readUserProfile(reader db.ResponseReader) (map[int]float32, error) {
-	result := map[int]float32{}
+func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
+	result := map[int64]float32{}
 
-	uniquePosts := map[int]struct{}{}
+	uniquePosts := map[int64]struct{}{}
 	row := PostTagLink{}
 
 	ok, err := reader.Next(&row.PostID, &row.TagID)
@@ -75,14 +75,14 @@ func readUserProfile(reader db.ResponseReader) (map[int]float32, error) {
 	return result, nil
 }
 
-func readPostsTags(reader db.ResponseReader) (map[int]map[int]float32, error) {
-	result := map[int]map[int]float32{}
+func readPostsTags(reader db.ResponseReader) (map[int64]map[int64]float32, error) {
+	result := map[int64]map[int64]float32{}
 
 	row := PostTagLink{}
 	ok, err := reader.Next(&row.PostID, &row.TagID)
 	for ; ok; ok, err = reader.Next(&row.PostID, &row.TagID) {
 		if _, contains := result[row.PostID]; !contains {
-			result[row.PostID] = map[int]float32{}
+			result[row.PostID] = map[int64]float32{}
 		}
 
 		result[row.PostID][row.TagID] = 1
