@@ -31,7 +31,7 @@ func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
 		PostsTagsReader:   postsReader,
 	}
 
-	topList, err := similarity.GetSimilarPosts(&readers, MAX_RECOMMENDED_POSTS)
+	topList, err := similarity.GetSimilarPosts(readers, MAX_RECOMMENDED_POSTS)
 	if err != nil {
 		return HandlerResponse{http.StatusInternalServerError, CreateErrorMessage("SQL_READ_ERROR"), err}
 	}

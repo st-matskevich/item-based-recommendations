@@ -14,16 +14,17 @@ var opt = cmp.Comparer(func(x, y float32) bool {
 	return diff < tolerance
 })
 
-type FakePostTagLinkReader struct {
+type FakeResponseReader struct {
 	rows []PostTagLink
 	last int
 }
 
-func (fetcher *FakePostTagLinkReader) Next(data *PostTagLink) (bool, error) {
+func (reader *FakeResponseReader) Next(dest ...interface{}) (bool, error) {
 	result := false
-	if fetcher.last < len(fetcher.rows) {
-		*data = fetcher.rows[fetcher.last]
-		fetcher.last++
+	if reader.last < len(reader.rows) {
+		*dest[0].(*int) = reader.rows[reader.last].PostID
+		*dest[1].(*int) = reader.rows[reader.last].TagID
+		reader.last++
 		result = true
 	}
 	return result, nil
@@ -57,13 +58,13 @@ func TestNormalizeVector(t *testing.T) {
 func TestReadUserProfile(t *testing.T) {
 	tests := []struct {
 		name string
-		args FakePostTagLinkReader
+		args FakeResponseReader
 		want map[int]float32
 		err  error
 	}{
 		{
 			name: "hand-made test",
-			args: FakePostTagLinkReader{
+			args: FakeResponseReader{
 				rows: []PostTagLink{
 					{1, 1}, {1, 2},
 					{3, 1}, {3, 3},
@@ -94,13 +95,13 @@ func TestReadUserProfile(t *testing.T) {
 func TestReadPostsTags(t *testing.T) {
 	tests := []struct {
 		name string
-		args FakePostTagLinkReader
+		args FakeResponseReader
 		want map[int]map[int]float32
 		err  error
 	}{
 		{
 			name: "hand-made test",
-			args: FakePostTagLinkReader{
+			args: FakeResponseReader{
 				rows: []PostTagLink{
 					{2, 1}, {2, 2},
 					{4, 1}, {4, 5},
@@ -145,7 +146,7 @@ func TestGetSimilarPosts(t *testing.T) {
 		{
 			name: "hand-made test",
 			readers: ProfilesReaders{
-				UserProfileReader: &FakePostTagLinkReader{
+				UserProfileReader: &FakeResponseReader{
 					rows: []PostTagLink{
 						{1, 1}, {1, 2},
 						{3, 1}, {3, 3},
@@ -153,7 +154,7 @@ func TestGetSimilarPosts(t *testing.T) {
 					},
 					last: 0,
 				},
-				PostsTagsReader: &FakePostTagLinkReader{
+				PostsTagsReader: &FakeResponseReader{
 					rows: []PostTagLink{
 						{2, 1}, {2, 2},
 						{4, 1}, {4, 5},
@@ -170,7 +171,7 @@ func TestGetSimilarPosts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := GetSimilarPosts(&test.readers, test.top)
+			result, err := GetSimilarPosts(test.readers, test.top)
 
 			if !cmp.Equal(err, test.err, opt) {
 				t.Fatalf("GetSimilarPosts() error %v, wanted %v", err, test.err)

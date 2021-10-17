@@ -1,7 +1,6 @@
 package similarity
 
 import (
-	"database/sql"
 	"math"
 
 	"github.com/st-matskevich/item-based-recommendations/db"
@@ -18,42 +17,16 @@ type PostTagLink struct {
 	TagID  int
 }
 
-type PostTagLinkReader interface {
-	Next(*PostTagLink) (bool, error)
-}
-
-type SQLPostTagLinkReader struct {
-	rows *sql.Rows
-}
-
-func (fetcher *SQLPostTagLinkReader) Next(data *PostTagLink) (bool, error) {
-	if fetcher.rows.Next() {
-		err := fetcher.rows.Scan(&data.PostID, &data.TagID)
-		return err == nil, err
-	}
-	return false, fetcher.rows.Err()
-}
-
 type ProfilesReaders struct {
-	UserProfileReader, PostsTagsReader PostTagLinkReader
+	UserProfileReader, PostsTagsReader db.ResponseReader
 }
 
-func GetUserProfileReader(client *db.SQLClient, id int) (PostTagLinkReader, error) {
-	rows, err := client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLPostTagLinkReader{rows: rows}, nil
+func GetUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+	return client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
 }
 
-func GetPostsTagsReader(client *db.SQLClient, id int) (PostTagLinkReader, error) {
-	rows, err := client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLPostTagLinkReader{rows: rows}, nil
+func GetPostsTagsReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+	return client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 }
 
 func normalizeVector(vector map[int]float32) {
@@ -69,14 +42,14 @@ func normalizeVector(vector map[int]float32) {
 	}
 }
 
-func readUserProfile(reader PostTagLinkReader) (map[int]float32, error) {
+func readUserProfile(reader db.ResponseReader) (map[int]float32, error) {
 	result := map[int]float32{}
 
 	uniquePosts := map[int]struct{}{}
 	row := PostTagLink{}
 
-	ok, err := reader.Next(&row)
-	for ; ok; ok, err = reader.Next(&row) {
+	ok, err := reader.Next(&row.PostID, &row.TagID)
+	for ; ok; ok, err = reader.Next(&row.PostID, &row.TagID) {
 		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
 		if _, contains := result[row.TagID]; !contains {
 			result[row.TagID] = 1
@@ -99,12 +72,12 @@ func readUserProfile(reader PostTagLinkReader) (map[int]float32, error) {
 	return result, nil
 }
 
-func readPostsTags(reader PostTagLinkReader) (map[int]map[int]float32, error) {
+func readPostsTags(reader db.ResponseReader) (map[int]map[int]float32, error) {
 	result := map[int]map[int]float32{}
 
 	row := PostTagLink{}
-	ok, err := reader.Next(&row)
-	for ; ok; ok, err = reader.Next(&row) {
+	ok, err := reader.Next(&row.PostID, &row.TagID)
+	for ; ok; ok, err = reader.Next(&row.PostID, &row.TagID) {
 		if _, contains := result[row.PostID]; !contains {
 			result[row.PostID] = map[int]float32{}
 		}
@@ -123,7 +96,7 @@ func readPostsTags(reader PostTagLinkReader) (map[int]map[int]float32, error) {
 	return result, nil
 }
 
-func GetSimilarPosts(readers *ProfilesReaders, topSize int) ([]PostSimilarity, error) {
+func GetSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, error) {
 	userProfile, err := readUserProfile(readers.UserProfileReader)
 	if err != nil {
 		return nil, err

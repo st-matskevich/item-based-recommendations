@@ -20,7 +20,12 @@ var authClient *FirebaseAuth
 
 func mapFirebaseUIDToUserID(UID string) (int, error) {
 	result := -1
-	err := db.GetSQLClient().QueryRow("SELECT user_id FROM users WHERE firebase_uid = $1", UID).Scan(&result)
+	reader, err := db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
+	if err != nil {
+		return result, err
+	}
+
+	_, err = reader.Next(&result)
 	return result, err
 }
 
