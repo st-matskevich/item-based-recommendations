@@ -171,7 +171,7 @@ func TestGetSimilarPosts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := GetSimilarPosts(test.readers, test.top)
+			result, err := getSimilarPosts(test.readers, test.top)
 
 			if !cmp.Equal(err, test.err, opt) {
 				t.Fatalf("GetSimilarPosts() error %v, wanted %v", err, test.err)

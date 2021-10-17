@@ -2,8 +2,11 @@ package similarity
 
 import (
 	"math"
+	"net/http"
 
+	"github.com/st-matskevich/item-based-recommendations/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/db"
+	"github.com/st-matskevich/item-based-recommendations/firebase"
 )
 
 //TODO: similarity field should be private in production
@@ -21,11 +24,11 @@ type ProfilesReaders struct {
 	UserProfileReader, PostsTagsReader db.ResponseReader
 }
 
-func GetUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+func getUserProfileReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
 	return client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
 }
 
-func GetPostsTagsReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
+func getPostsTagsReader(client *db.SQLClient, id int) (db.ResponseReader, error) {
 	return client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 }
 
@@ -96,7 +99,7 @@ func readPostsTags(reader db.ResponseReader) (map[int]map[int]float32, error) {
 	return result, nil
 }
 
-func GetSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, error) {
+func getSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, error) {
 	userProfile, err := readUserProfile(readers.UserProfileReader)
 	if err != nil {
 		return nil, err
@@ -132,4 +135,35 @@ func GetSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, er
 		}
 	}
 	return result, nil
+}
+
+const MAX_RECOMMENDED_POSTS = 5
+
+func GetRecommendationsHandler(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
+	}
+
+	profileReader, err := getUserProfileReader(db.GetSQLClient(), uid)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	postsReader, err := getPostsTagsReader(db.GetSQLClient(), uid)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	readers := ProfilesReaders{
+		UserProfileReader: profileReader,
+		PostsTagsReader:   postsReader,
+	}
+
+	topList, err := getSimilarPosts(readers, MAX_RECOMMENDED_POSTS)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	return utils.MakeHandlerResponse(http.StatusOK, topList, nil)
 }
