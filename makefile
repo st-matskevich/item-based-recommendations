@@ -6,5 +6,8 @@ migrate-up:
 migrate-drop:
 	migrate -source file://migrations -database $(SQL_CONNECTION_STRING) drop
 
+migrate-create:
+	migrate create -ext sql -dir migrations $(name)
+
 run:
 	go run .
