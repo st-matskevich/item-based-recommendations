@@ -6,9 +6,11 @@ package firebase
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"firebase.google.com/go/auth"
+	"github.com/lib/pq"
 	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
@@ -19,18 +21,29 @@ type FirebaseAuth struct {
 var authClient *FirebaseAuth
 
 func mapFirebaseUIDToUserID(UID string) (int, error) {
-	result := -1
-	reader, err := db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
+	var result int
+	reader, err := db.GetSQLClient().Query("INSERT INTO users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
 	if err != nil {
-		return result, err
+		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code.Name() == "unique_violation" {
+			reader, err = db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
+
+			if err != nil {
+				return result, err
+			}
+		} else {
+			return result, err
+		}
 	}
 
-	_, err = reader.Next(&result)
+	found, err := reader.Next(&result)
+	if !found && err == nil {
+		err = errors.New("db has not returned any id")
+	}
 	return result, err
 }
 
 func (client *FirebaseAuth) Verify(authorizationHeader string) (int, error) {
-	result := -1
+	var result int
 	tokenString := strings.TrimSpace(strings.Replace(authorizationHeader, "Bearer", "", 1))
 	token, err := client.fbAuth.VerifyIDToken(context.Background(), tokenString)
 
