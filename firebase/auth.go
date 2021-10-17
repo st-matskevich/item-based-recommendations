@@ -11,6 +11,7 @@ import (
 
 	"firebase.google.com/go/auth"
 	"github.com/lib/pq"
+	"github.com/st-matskevich/item-based-recommendations/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/db"
 )
 
@@ -37,7 +38,7 @@ func mapFirebaseUIDToUserID(UID string) (int, error) {
 
 	found, err := reader.Next(&result)
 	if !found && err == nil {
-		err = errors.New("db has not returned any id")
+		err = errors.New(utils.SQL_NO_RESULT)
 	}
 	return result, err
 }
