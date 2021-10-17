@@ -25,11 +25,11 @@ type ProfilesReaders struct {
 }
 
 func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query("SELECT likes.post_id, tag_id FROM likes JOIN post_tag ON likes.post_id = post_tag.post_id WHERE user_id = $1", id)
+	return client.Query("SELECT main_shard.likes.post_id, tag_id FROM main_shard.likes JOIN main_shard.post_tag ON main_shard.likes.post_id = main_shard.post_tag.post_id WHERE user_id = $1", id)
 }
 
 func getPostsTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query("SELECT post_tag.post_id, tag_id FROM likes RIGHT JOIN post_tag ON likes.post_id = post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
+	return client.Query("SELECT main_shard.post_tag.post_id, tag_id FROM main_shard.likes RIGHT JOIN main_shard.post_tag ON main_shard.likes.post_id = main_shard.post_tag.post_id AND user_id = $1 WHERE user_id IS NULL", id)
 }
 
 func normalizeVector(vector map[int64]float32) {

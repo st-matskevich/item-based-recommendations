@@ -1,1 +1,0 @@
-ALTER TABLE users ADD CONSTRAINT unique_firebase_uid UNIQUE (firebase_uid);
