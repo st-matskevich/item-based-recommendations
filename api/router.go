@@ -18,7 +18,7 @@ type Handler func(http.ResponseWriter, *http.Request) HandlerResponse
 
 type Route struct {
 	Name        string
-	Methods     []string
+	Method      string
 	Pattern     string
 	HandlerFunc Handler
 }
@@ -34,14 +34,9 @@ func CreateErrorMessage(code string) ErrorResponse {
 	return ErrorResponse{ErrorMessage{code}}
 }
 
-func handleCORS(w http.ResponseWriter, r *http.Request) bool {
+func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return true
-	}
-	return false
 }
 
 func BaseHandler(inner Handler, name string) http.Handler {
@@ -49,9 +44,7 @@ func BaseHandler(inner Handler, name string) http.Handler {
 		start := time.Now()
 
 		//TODO: this should be removed in prod
-		if handleCORS(w, r) {
-			return
-		}
+		addCORSHeaders(w)
 
 		response := inner(w, r)
 
@@ -80,12 +73,16 @@ func BaseHandler(inner Handler, name string) http.Handler {
 func MakeRouter() *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)
+
+	//TODO: this should be removed in prod
+	router.Methods("OPTIONS").Handler(BaseHandler(corsHandler, "CORS"))
+
 	for _, route := range routes {
 
 		handler := BaseHandler(route.HandlerFunc, route.Name)
 
 		router.
-			Methods(route.Methods...).
+			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(handler)
@@ -97,7 +94,7 @@ func MakeRouter() *mux.Router {
 var routes = []Route{
 	{
 		"Recommendations",
-		[]string{"GET", "OPTIONS"},
+		"GET",
 		"/recommendations",
 		similarityRequest,
 	},

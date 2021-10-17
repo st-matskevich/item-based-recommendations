@@ -38,3 +38,7 @@ func similarityRequest(w http.ResponseWriter, r *http.Request) HandlerResponse {
 
 	return HandlerResponse{http.StatusOK, topList, nil}
 }
+
+func corsHandler(w http.ResponseWriter, r *http.Request) HandlerResponse {
+	return HandlerResponse{http.StatusOK, struct{}{}, nil}
+}
