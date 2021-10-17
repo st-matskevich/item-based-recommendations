@@ -23,15 +23,12 @@ type Route struct {
 	HandlerFunc Handler
 }
 
-type ErrorResponse struct {
-	Error ErrorMessage `json:"error"`
-}
 type ErrorMessage struct {
 	Code string `json:"code"`
 }
 
-func CreateErrorMessage(code string) ErrorResponse {
-	return ErrorResponse{ErrorMessage{code}}
+func CreateErrorMessage(code string) ErrorMessage {
+	return ErrorMessage{code}
 }
 
 func addCORSHeaders(w http.ResponseWriter) {
