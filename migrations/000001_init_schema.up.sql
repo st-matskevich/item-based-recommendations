@@ -1,4 +1,4 @@
-CREATE SEQUENCE global_id_sequence;
+CREATE SEQUENCE global_id_sequence CYCLE;
 
 CREATE OR REPLACE FUNCTION id_generator(OUT result bigint) AS $$
 DECLARE
