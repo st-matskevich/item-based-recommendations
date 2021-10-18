@@ -6,6 +6,7 @@ import (
 
 type ResponseReader interface {
 	Next(dest ...interface{}) (bool, error)
+	Close()
 }
 
 type SQLResponseReader struct {
@@ -20,6 +21,12 @@ func (reader *SQLResponseReader) Next(dest ...interface{}) (bool, error) {
 	return false, reader.rows.Err()
 }
 
+func (reader *SQLResponseReader) Close() {
+	if reader.rows != nil {
+		reader.rows.Close()
+	}
+}
+
 type SQLClient struct {
 	db *sql.DB
 }
@@ -28,11 +35,7 @@ var client *SQLClient
 
 func (client *SQLClient) Query(query string, args ...interface{}) (*SQLResponseReader, error) {
 	response, err := client.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLResponseReader{response}, nil
+	return &SQLResponseReader{response}, err
 }
 
 func GetSQLClient() *SQLClient {

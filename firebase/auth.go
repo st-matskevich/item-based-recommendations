@@ -25,6 +25,7 @@ func mapFirebaseUIDToUserID(UID string) (int64, error) {
 	var result int64
 	reader, err := db.GetSQLClient().Query("INSERT INTO users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
 	if err != nil {
+		reader.Close()
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code.Name() == "unique_violation" {
 			reader, err = db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
 
@@ -37,6 +38,7 @@ func mapFirebaseUIDToUserID(UID string) (int64, error) {
 	}
 
 	found, err := reader.Next(&result)
+	reader.Close()
 	if !found && err == nil {
 		err = errors.New(utils.SQL_NO_RESULT)
 	}

@@ -38,6 +38,7 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
+	defer reader.Close()
 
 	profile, err := getUserProfile(reader)
 	if err != nil {
@@ -48,7 +49,8 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 }
 
 func setUserProfile(client *db.SQLClient, id int64, profile UserProfile) error {
-	_, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
+	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
+	reader.Close()
 	return err
 }
 

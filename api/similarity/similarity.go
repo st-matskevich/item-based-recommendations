@@ -156,11 +156,13 @@ func HandleGetRecommendations(w http.ResponseWriter, r *http.Request) utils.Hand
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
+	defer profileReader.Close()
 
 	postsReader, err := getPostsTagsReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
+	defer postsReader.Close()
 
 	readers := ProfilesReaders{
 		UserProfileReader: profileReader,

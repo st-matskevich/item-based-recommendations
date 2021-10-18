@@ -30,6 +30,8 @@ func (reader *FakeResponseReader) Next(dest ...interface{}) (bool, error) {
 	return result, nil
 }
 
+func (reader *FakeResponseReader) Close() {}
+
 func TestNormalizeVector(t *testing.T) {
 	tests := []struct {
 		name string
