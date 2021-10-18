@@ -32,7 +32,3 @@ CREATE TABLE main_shard.post_tag(
 CREATE TABLE main_shard.likes(
     user_id BIGINT NOT NULL, 
     post_id BIGINT NOT NULL);
-
---add testing data
-INSERT INTO main_shard.likes(user_id, post_id) VALUES (1, 1), (1, 3), (1, 5);
-INSERT INTO main_shard.post_tag(post_id, tag_id) VALUES (1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 3), (4, 1), (4, 5), (5, 1), (5, 4), (6, 6), (6, 2), (7, 7), (7, 8);
