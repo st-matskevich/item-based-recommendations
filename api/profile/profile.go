@@ -16,7 +16,7 @@ type UserProfile struct {
 }
 
 func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query("SELECT name, is_customer FROM main_shard.users WHERE user_id = $1", id)
+	return client.Query("SELECT name, is_customer FROM users WHERE user_id = $1", id)
 }
 
 func getUserProfile(reader db.ResponseReader) (UserProfile, error) {
@@ -48,7 +48,7 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 }
 
 func setUserProfile(client *db.SQLClient, id int64, profile UserProfile) error {
-	_, err := client.Query("UPDATE main_shard.users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
+	_, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
 	return err
 }
 

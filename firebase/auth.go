@@ -23,10 +23,10 @@ var authClient *FirebaseAuth
 
 func mapFirebaseUIDToUserID(UID string) (int64, error) {
 	var result int64
-	reader, err := db.GetSQLClient().Query("INSERT INTO main_shard.users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
+	reader, err := db.GetSQLClient().Query("INSERT INTO users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
 	if err != nil {
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code.Name() == "unique_violation" {
-			reader, err = db.GetSQLClient().Query("SELECT user_id FROM main_shard.users WHERE firebase_uid = $1", UID)
+			reader, err = db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
 
 			if err != nil {
 				return result, err
