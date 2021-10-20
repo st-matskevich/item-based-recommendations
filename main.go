@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/st-matskevich/item-based-recommendations/api"
-	"github.com/st-matskevich/item-based-recommendations/db"
-	"github.com/st-matskevich/item-based-recommendations/firebase"
+	"github.com/st-matskevich/item-based-recommendations/internal/api"
+	"github.com/st-matskevich/item-based-recommendations/internal/db"
+	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 const SERVER_ADDR = ":10000"

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/st-matskevich/item-based-recommendations/api/profile"
-	"github.com/st-matskevich/item-based-recommendations/api/similarity"
-	"github.com/st-matskevich/item-based-recommendations/api/utils"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/similarity"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
 type Handler func(http.ResponseWriter, *http.Request) utils.HandlerResponse

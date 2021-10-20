@@ -4,9 +4,9 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/st-matskevich/item-based-recommendations/api/utils"
-	"github.com/st-matskevich/item-based-recommendations/db"
-	"github.com/st-matskevich/item-based-recommendations/firebase"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
+	"github.com/st-matskevich/item-based-recommendations/internal/db"
+	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 //TODO: similarity field should be private in production

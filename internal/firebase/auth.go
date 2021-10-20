@@ -11,8 +11,8 @@ import (
 
 	"firebase.google.com/go/auth"
 	"github.com/lib/pq"
-	"github.com/st-matskevich/item-based-recommendations/api/utils"
-	"github.com/st-matskevich/item-based-recommendations/db"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
+	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
 
 type FirebaseAuth struct {

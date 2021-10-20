@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/st-matskevich/item-based-recommendations/api/utils"
-	"github.com/st-matskevich/item-based-recommendations/db"
-	"github.com/st-matskevich/item-based-recommendations/firebase"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
+	"github.com/st-matskevich/item-based-recommendations/internal/db"
+	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 type UserProfile struct {
