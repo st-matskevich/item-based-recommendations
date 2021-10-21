@@ -37,7 +37,7 @@ func BaseHandler(inner Handler, name string) http.Handler {
 		response := inner(w, r)
 
 		log.Printf(
-			"%s\t%s\t%d\t%s\t%s",
+			"%-8s %-64s %d %-32s %-10s",
 			r.Method,
 			r.RequestURI,
 			response.Code,
