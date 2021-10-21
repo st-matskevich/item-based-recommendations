@@ -29,20 +29,20 @@ type Task struct {
 func getTasksReader(client *db.SQLClient, id int64, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case CUSTOMER:
-		return client.Query(`SELECT post_id, posts.name, description, users.name, created_at 
-				FROM posts JOIN users 
+		return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at 
+				FROM tasks JOIN users 
 				ON customer_id = user_id
 				WHERE customer_id = $1
 				ORDER BY created_at`, id)
 	case DOER:
-		return client.Query(`SELECT post_id, posts.name, description, users.name, created_at  
-				FROM posts JOIN users 
+		return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at  
+				FROM tasks JOIN users 
 				ON customer_id = user_id
 				WHERE doer_id = $1
 				ORDER BY created_at`, id)
 	}
-	return client.Query(`SELECT post_id, posts.name, description, users.name, created_at  
-			FROM posts JOIN users 
+	return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at  
+			FROM tasks JOIN users 
 			ON customer_id = user_id
 			WHERE doer_id IS NULL
 			ORDER BY created_at`)
@@ -85,7 +85,7 @@ func HandleGetTasks(w http.ResponseWriter, r *http.Request) utils.HandlerRespons
 }
 
 func createTask(client *db.SQLClient, id int64, task Task) error {
-	reader, err := client.Query("INSERT INTO posts(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, id)
+	reader, err := client.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, id)
 	reader.Close()
 	return err
 }

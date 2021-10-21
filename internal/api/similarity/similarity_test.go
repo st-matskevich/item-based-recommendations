@@ -15,14 +15,14 @@ var opt = cmp.Comparer(func(x, y float32) bool {
 })
 
 type FakeResponseReader struct {
-	rows []PostTagLink
+	rows []TaskTagLink
 	last int
 }
 
 func (reader *FakeResponseReader) Next(dest ...interface{}) (bool, error) {
 	result := false
 	if reader.last < len(reader.rows) {
-		*dest[0].(*int64) = reader.rows[reader.last].PostID
+		*dest[0].(*int64) = reader.rows[reader.last].TaskID
 		*dest[1].(*int64) = reader.rows[reader.last].TagID
 		reader.last++
 		result = true
@@ -67,7 +67,7 @@ func TestReadUserProfile(t *testing.T) {
 		{
 			name: "hand-made test",
 			args: FakeResponseReader{
-				rows: []PostTagLink{
+				rows: []TaskTagLink{
 					{1, 1}, {1, 2},
 					{3, 1}, {3, 3},
 					{5, 1}, {5, 4},
@@ -94,7 +94,7 @@ func TestReadUserProfile(t *testing.T) {
 	}
 }
 
-func TestReadPostsTags(t *testing.T) {
+func TestReadTasksTags(t *testing.T) {
 	tests := []struct {
 		name string
 		args FakeResponseReader
@@ -104,7 +104,7 @@ func TestReadPostsTags(t *testing.T) {
 		{
 			name: "hand-made test",
 			args: FakeResponseReader{
-				rows: []PostTagLink{
+				rows: []TaskTagLink{
 					{2, 1}, {2, 2},
 					{4, 1}, {4, 5},
 					{6, 2}, {6, 6},
@@ -123,41 +123,41 @@ func TestReadPostsTags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := readPostsTags(&test.args)
+			result, err := readTasksTags(&test.args)
 
 			if !cmp.Equal(err, test.err, opt) {
-				t.Fatalf("readPostsTags() error %v, wanted %v", err, test.err)
+				t.Fatalf("readTasksTags() error %v, wanted %v", err, test.err)
 			}
 
 			if !cmp.Equal(result, test.want, opt) {
-				t.Fatalf("readPostsTags() result %v, wanted %v", result, test.want)
+				t.Fatalf("readTasksTags() result %v, wanted %v", result, test.want)
 			}
 		})
 	}
 }
 
-func TestGetSimilarPosts(t *testing.T) {
+func TestGetSimilarTasks(t *testing.T) {
 	tests := []struct {
 		name    string
 		readers ProfilesReaders
 		user    string
 		top     int
-		want    []PostSimilarity
+		want    []TaskSimilarity
 		err     error
 	}{
 		{
 			name: "hand-made test",
 			readers: ProfilesReaders{
 				UserProfileReader: &FakeResponseReader{
-					rows: []PostTagLink{
+					rows: []TaskTagLink{
 						{1, 1}, {1, 2},
 						{3, 1}, {3, 3},
 						{5, 1}, {5, 4},
 					},
 					last: 0,
 				},
-				PostsTagsReader: &FakeResponseReader{
-					rows: []PostTagLink{
+				TasksTagsReader: &FakeResponseReader{
+					rows: []TaskTagLink{
 						{2, 1}, {2, 2},
 						{4, 1}, {4, 5},
 						{6, 2}, {6, 6},
@@ -167,20 +167,20 @@ func TestGetSimilarPosts(t *testing.T) {
 				},
 			},
 			top:  3,
-			want: []PostSimilarity{{2, 0.816496}, {4, 0.612372}, {6, 0.204124}},
+			want: []TaskSimilarity{{2, 0.816496}, {4, 0.612372}, {6, 0.204124}},
 			err:  nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := getSimilarPosts(test.readers, test.top)
+			result, err := getSimilarTasks(test.readers, test.top)
 
 			if !cmp.Equal(err, test.err, opt) {
-				t.Fatalf("GetSimilarPosts() error %v, wanted %v", err, test.err)
+				t.Fatalf("GetSimilarTasks() error %v, wanted %v", err, test.err)
 			}
 
 			if !cmp.Equal(result, test.want, opt) {
-				t.Fatalf("GetSimilarPosts() result %v, wanted %v", result, test.want)
+				t.Fatalf("GetSimilarTasks() result %v, wanted %v", result, test.want)
 			}
 		})
 	}

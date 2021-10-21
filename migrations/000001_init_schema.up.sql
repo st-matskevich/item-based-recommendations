@@ -24,10 +24,10 @@ CREATE TABLE users(
     name VARCHAR(32) NOT NULL DEFAULT '',
     is_customer BOOLEAN NOT NULL DEFAULT false);
 
-CREATE TABLE post_tag(
-    post_id BIGINT NOT NULL, 
+CREATE TABLE task_tag(
+    task_id BIGINT NOT NULL, 
     tag_id BIGINT NOT NULL);
 
 CREATE TABLE likes(
     user_id BIGINT NOT NULL, 
-    post_id BIGINT NOT NULL);
+    task_id BIGINT NOT NULL);

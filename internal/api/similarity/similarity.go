@@ -10,31 +10,31 @@ import (
 )
 
 //TODO: similarity field should be private in production
-type PostSimilarity struct {
+type TaskSimilarity struct {
 	Id         int64   `json:"id"`
 	Similarity float32 `json:"similarity"`
 }
 
-type PostTagLink struct {
-	PostID int64
+type TaskTagLink struct {
+	TaskID int64
 	TagID  int64
 }
 
 type ProfilesReaders struct {
-	UserProfileReader, PostsTagsReader db.ResponseReader
+	UserProfileReader, TasksTagsReader db.ResponseReader
 }
 
 func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query(`SELECT post_tag.post_id, tag_id 
-						FROM likes JOIN post_tag 
-						ON likes.post_id = post_tag.post_id 
+	return client.Query(`SELECT task_tag.task_id, tag_id 
+						FROM likes JOIN task_tag 
+						ON likes.task_id = task_tag.task_id 
 						WHERE user_id = $1`, id)
 }
 
-func getPostsTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query(`SELECT post_tag.post_id, tag_id 
-						FROM likes RIGHT JOIN post_tag 
-						ON likes.post_id = post_tag.post_id 
+func getTasksTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
+	return client.Query(`SELECT task_tag.task_id, tag_id 
+						FROM likes RIGHT JOIN task_tag 
+						ON likes.task_id = task_tag.task_id 
 						AND user_id = $1 
 						WHERE user_id IS NULL`, id)
 }
@@ -55,18 +55,18 @@ func normalizeVector(vector map[int64]float32) {
 func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
 	result := map[int64]float32{}
 
-	uniquePosts := map[int64]struct{}{}
-	row := PostTagLink{}
+	uniqueTasks := map[int64]struct{}{}
+	row := TaskTagLink{}
 
-	ok, err := reader.Next(&row.PostID, &row.TagID)
-	for ; ok; ok, err = reader.Next(&row.PostID, &row.TagID) {
+	ok, err := reader.Next(&row.TaskID, &row.TagID)
+	for ; ok; ok, err = reader.Next(&row.TaskID, &row.TagID) {
 		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
 		if _, contains := result[row.TagID]; !contains {
 			result[row.TagID] = 1
 		} else {
 			result[row.TagID] += 1
 		}
-		uniquePosts[row.PostID] = struct{}{}
+		uniqueTasks[row.TaskID] = struct{}{}
 	}
 
 	if err != nil {
@@ -74,7 +74,7 @@ func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
 	}
 
 	for tagID := range result {
-		result[tagID] /= float32(len(uniquePosts))
+		result[tagID] /= float32(len(uniqueTasks))
 	}
 
 	normalizeVector(result)
@@ -82,45 +82,45 @@ func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
 	return result, nil
 }
 
-func readPostsTags(reader db.ResponseReader) (map[int64]map[int64]float32, error) {
+func readTasksTags(reader db.ResponseReader) (map[int64]map[int64]float32, error) {
 	result := map[int64]map[int64]float32{}
 
-	row := PostTagLink{}
-	ok, err := reader.Next(&row.PostID, &row.TagID)
-	for ; ok; ok, err = reader.Next(&row.PostID, &row.TagID) {
-		if _, contains := result[row.PostID]; !contains {
-			result[row.PostID] = map[int64]float32{}
+	row := TaskTagLink{}
+	ok, err := reader.Next(&row.TaskID, &row.TagID)
+	for ; ok; ok, err = reader.Next(&row.TaskID, &row.TagID) {
+		if _, contains := result[row.TaskID]; !contains {
+			result[row.TaskID] = map[int64]float32{}
 		}
 
-		result[row.PostID][row.TagID] = 1
+		result[row.TaskID][row.TagID] = 1
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	for postID := range result {
-		normalizeVector(result[postID])
+	for taskID := range result {
+		normalizeVector(result[taskID])
 	}
 
 	return result, nil
 }
 
-func getSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, error) {
+func getSimilarTasks(readers ProfilesReaders, topSize int) ([]TaskSimilarity, error) {
 	userProfile, err := readUserProfile(readers.UserProfileReader)
 	if err != nil {
 		return nil, err
 	}
 
-	postsTags, err := readPostsTags(readers.PostsTagsReader)
+	tasksTags, err := readTasksTags(readers.TasksTagsReader)
 	if err != nil {
 		return nil, err
 	}
 
-	result := []PostSimilarity{}
+	result := []TaskSimilarity{}
 	similarity := float32(0)
 
-	for postID, tagsMap := range postsTags {
+	for taskID, tagsMap := range tasksTags {
 		//TODO: use go coroutines
 		similarity = 0
 		for tagID, tagWeight := range tagsMap {
@@ -130,9 +130,9 @@ func getSimilarPosts(readers ProfilesReaders, topSize int) ([]PostSimilarity, er
 		}
 
 		if len(result) < topSize {
-			result = append(result, PostSimilarity{postID, similarity})
+			result = append(result, TaskSimilarity{taskID, similarity})
 		} else if similarity > result[len(result)-1].Similarity {
-			result[len(result)-1] = PostSimilarity{postID, similarity}
+			result[len(result)-1] = TaskSimilarity{taskID, similarity}
 		} else {
 			continue
 		}
@@ -158,18 +158,18 @@ func HandleGetRecommendations(w http.ResponseWriter, r *http.Request) utils.Hand
 	}
 	defer profileReader.Close()
 
-	postsReader, err := getPostsTagsReader(db.GetSQLClient(), uid)
+	tasksReader, err := getTasksTagsReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
-	defer postsReader.Close()
+	defer tasksReader.Close()
 
 	readers := ProfilesReaders{
 		UserProfileReader: profileReader,
-		PostsTagsReader:   postsReader,
+		TasksTagsReader:   tasksReader,
 	}
 
-	topList, err := getSimilarPosts(readers, MAX_RECOMMENDED_POSTS)
+	topList, err := getSimilarTasks(readers, MAX_RECOMMENDED_POSTS)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
