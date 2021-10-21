@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/similarity"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/tasks"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
@@ -96,5 +97,17 @@ var routes = []Route{
 		"POST",
 		"/profile",
 		profile.HandleSetUserProfile,
+	},
+	{
+		"Get Tasks",
+		"GET",
+		"/tasks",
+		tasks.HandleGetTasks,
+	},
+	{
+		"Create Task",
+		"POST",
+		"/tasks",
+		tasks.HandleCreateTask,
 	},
 }

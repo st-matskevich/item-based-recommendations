@@ -49,9 +49,21 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 }
 
 func setUserProfile(client *db.SQLClient, id int64, profile UserProfile) error {
-	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1; ", id, profile.Name, profile.IsCustomer)
+	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", id, profile.Name, profile.IsCustomer)
 	reader.Close()
 	return err
+}
+
+func parseUserProfile(profile UserProfile) error {
+	if profile.Name == "" {
+		return errors.New(utils.INVALID_INPUT)
+	}
+
+	if len([]rune(profile.Name)) > 32 {
+		return errors.New(utils.INVALID_INPUT)
+	}
+
+	return nil
 }
 
 func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
@@ -62,6 +74,11 @@ func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 
 	input := UserProfile{}
 	err = json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	err = parseUserProfile(input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
