@@ -15,8 +15,8 @@ type UserProfile struct {
 	IsCustomer bool   `json:"customer"`
 }
 
-func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
-	return client.Query("SELECT name, is_customer FROM users WHERE user_id = $1", id)
+func getUserProfileReader(client *db.SQLClient, userID int64) (db.ResponseReader, error) {
+	return client.Query("SELECT name, is_customer FROM users WHERE user_id = $1", userID)
 }
 
 func getUserProfile(reader db.ResponseReader) (UserProfile, error) {
@@ -48,8 +48,8 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 	return utils.MakeHandlerResponse(http.StatusOK, profile, nil)
 }
 
-func setUserProfile(client *db.SQLClient, id int64, profile UserProfile) error {
-	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", id, profile.Name, profile.IsCustomer)
+func setUserProfile(client *db.SQLClient, profile UserProfile, userID int64) error {
+	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", userID, profile.Name, profile.IsCustomer)
 	reader.Close()
 	return err
 }
@@ -83,7 +83,7 @@ func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	err = setUserProfile(db.GetSQLClient(), uid, input)
+	err = setUserProfile(db.GetSQLClient(), input, uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,40 +20,40 @@ const (
 )
 
 type Task struct {
-	Id          int64     `json:"id"`
+	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
-	Description string    `json:"description"`
+	Description string    `json:"description,omitempty"`
 	Customer    string    `json:"customer"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
-func getTasksReader(client *db.SQLClient, id int64, scope string) (db.ResponseReader, error) {
+func getTasksFeedReader(client *db.SQLClient, userID int64, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case CUSTOMER:
-		return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at 
-				FROM tasks JOIN users 
-				ON customer_id = user_id
-				WHERE customer_id = $1
-				ORDER BY created_at`, id)
+		return client.Query(`SELECT task_id, tasks.name, users.name, created_at 
+							FROM tasks JOIN users 
+							ON customer_id = user_id
+							AND customer_id = $1
+							ORDER BY created_at`, userID)
 	case DOER:
-		return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at  
-				FROM tasks JOIN users 
-				ON customer_id = user_id
-				WHERE doer_id = $1
-				ORDER BY created_at`, id)
+		return client.Query(`SELECT task_id, tasks.name, users.name, created_at  
+							FROM tasks JOIN users 
+							ON customer_id = user_id
+							AND doer_id = $1
+							ORDER BY created_at`, userID)
 	}
-	return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at  
-			FROM tasks JOIN users 
-			ON customer_id = user_id
-			WHERE doer_id IS NULL
-			ORDER BY created_at`)
+	return client.Query(`SELECT task_id, tasks.name, users.name, created_at  
+						FROM tasks JOIN users 
+						ON customer_id = user_id
+						AND doer_id IS NULL
+						ORDER BY created_at`)
 }
 
-func getTasks(reader db.ResponseReader) ([]Task, error) {
+func getTasksFeed(reader db.ResponseReader) ([]Task, error) {
 	result := []Task{}
 	row := Task{}
-	ok, err := reader.Next(&row.Id, &row.Name, &row.Description, &row.Customer, &row.CreatedAt)
-	for ; ok; ok, err = reader.Next(&row.Id, &row.Name, &row.Description, &row.Customer, &row.CreatedAt) {
+	ok, err := reader.Next(&row.ID, &row.Name, &row.Customer, &row.CreatedAt)
+	for ; ok; ok, err = reader.Next(&row.ID, &row.Name, &row.Customer, &row.CreatedAt) {
 		result = append(result, row)
 	}
 
@@ -63,20 +64,20 @@ func getTasks(reader db.ResponseReader) ([]Task, error) {
 	return result, nil
 }
 
-func HandleGetTasks(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetTasksFeed(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
 	}
 
 	scope := mux.Vars(r)["scope"]
-	reader, err := getTasksReader(db.GetSQLClient(), uid, scope)
+	reader, err := getTasksFeedReader(db.GetSQLClient(), uid, scope)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 	defer reader.Close()
 
-	tasks, err := getTasks(reader)
+	tasks, err := getTasksFeed(reader)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
@@ -84,8 +85,49 @@ func HandleGetTasks(w http.ResponseWriter, r *http.Request) utils.HandlerRespons
 	return utils.MakeHandlerResponse(http.StatusOK, tasks, nil)
 }
 
-func createTask(client *db.SQLClient, id int64, task Task) error {
-	reader, err := client.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, id)
+func getTaskReader(client *db.SQLClient, taskID int64) (db.ResponseReader, error) {
+	return client.Query(`SELECT task_id, tasks.name, description, users.name, created_at  
+						FROM tasks JOIN users 
+						ON customer_id = user_id
+						AND task_id = $1`, taskID)
+}
+
+func getTask(reader db.ResponseReader) (Task, error) {
+	result := Task{}
+	found, err := reader.Next(&result.ID, &result.Name, &result.Description, &result.Customer, &result.CreatedAt)
+	if !found && err == nil {
+		err = errors.New(utils.SQL_NO_RESULT)
+	}
+	return result, err
+}
+
+func HandleGetTask(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+	_, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
+	}
+
+	taskID, err := strconv.ParseInt(mux.Vars(r)["task"], 10, 64)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	reader, err := getTaskReader(db.GetSQLClient(), taskID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+	defer reader.Close()
+
+	task, err := getTask(reader)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	return utils.MakeHandlerResponse(http.StatusOK, task, nil)
+}
+
+func createTask(client *db.SQLClient, task Task, userID int64) error {
+	reader, err := client.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, userID)
 	reader.Close()
 	return err
 }
@@ -123,7 +165,7 @@ func HandleCreateTask(w http.ResponseWriter, r *http.Request) utils.HandlerRespo
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	err = createTask(db.GetSQLClient(), uid, input)
+	err = createTask(db.GetSQLClient(), input, uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
