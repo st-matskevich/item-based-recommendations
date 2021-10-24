@@ -24,19 +24,19 @@ type ProfilesReaders struct {
 	UserProfileReader, TasksTagsReader db.ResponseReader
 }
 
-func getUserProfileReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
+func getUserProfileReader(client *db.SQLClient, userID int64) (db.ResponseReader, error) {
 	return client.Query(`SELECT task_tag.task_id, tag_id 
 						FROM likes JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
-						WHERE user_id = $1`, id)
+						AND user_id = $1`, userID)
 }
 
-func getTasksTagsReader(client *db.SQLClient, id int64) (db.ResponseReader, error) {
+func getTasksTagsReader(client *db.SQLClient, userID int64) (db.ResponseReader, error) {
 	return client.Query(`SELECT task_tag.task_id, tag_id 
 						FROM likes RIGHT JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
 						AND user_id = $1 
-						WHERE user_id IS NULL`, id)
+						WHERE user_id IS NULL`, userID)
 }
 
 func normalizeVector(vector map[int64]float32) {
