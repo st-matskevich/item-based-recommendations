@@ -21,7 +21,7 @@ type FirebaseAuth struct {
 
 var authClient *FirebaseAuth
 
-func mapFirebaseUIDToUserID(UID string) (int64, error) {
+func mapFirebaseUIDToUserID(UID string) (utils.UID, error) {
 	var result int64
 	reader, err := db.GetSQLClient().Query("INSERT INTO users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
 	if err != nil {
@@ -30,10 +30,10 @@ func mapFirebaseUIDToUserID(UID string) (int64, error) {
 			reader, err = db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
 
 			if err != nil {
-				return result, err
+				return utils.UID(result), err
 			}
 		} else {
-			return result, err
+			return utils.UID(result), err
 		}
 	}
 
@@ -42,16 +42,16 @@ func mapFirebaseUIDToUserID(UID string) (int64, error) {
 	if !found && err == nil {
 		err = errors.New(utils.SQL_NO_RESULT)
 	}
-	return result, err
+	return utils.UID(result), err
 }
 
-func (client *FirebaseAuth) Verify(authorizationHeader string) (int64, error) {
+func (client *FirebaseAuth) Verify(authorizationHeader string) (utils.UID, error) {
 	var result int64
 	tokenString := strings.TrimSpace(strings.Replace(authorizationHeader, "Bearer", "", 1))
 	token, err := client.fbAuth.VerifyIDToken(context.Background(), tokenString)
 
 	if err != nil {
-		return result, err
+		return utils.UID(result), err
 	}
 
 	return mapFirebaseUIDToUserID(token.UID)

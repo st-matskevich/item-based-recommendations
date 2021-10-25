@@ -11,27 +11,27 @@ import (
 
 //TODO: similarity field should be private in production
 type TaskSimilarity struct {
-	Id         int64   `json:"id"`
-	Similarity float32 `json:"similarity"`
+	Id         utils.UID `json:"id"`
+	Similarity float32   `json:"similarity"`
 }
 
 type TaskTagLink struct {
-	TaskID int64
-	TagID  int64
+	TaskID utils.UID
+	TagID  utils.UID
 }
 
 type ProfilesReaders struct {
 	UserProfileReader, TasksTagsReader db.ResponseReader
 }
 
-func getUserProfileReader(client *db.SQLClient, userID int64) (db.ResponseReader, error) {
+func getUserProfileReader(client *db.SQLClient, userID utils.UID) (db.ResponseReader, error) {
 	return client.Query(`SELECT task_tag.task_id, tag_id 
 						FROM likes JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
 						AND user_id = $1`, userID)
 }
 
-func getTasksTagsReader(client *db.SQLClient, userID int64) (db.ResponseReader, error) {
+func getTasksTagsReader(client *db.SQLClient, userID utils.UID) (db.ResponseReader, error) {
 	return client.Query(`SELECT task_tag.task_id, tag_id 
 						FROM likes RIGHT JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
@@ -39,7 +39,7 @@ func getTasksTagsReader(client *db.SQLClient, userID int64) (db.ResponseReader, 
 						WHERE user_id IS NULL`, userID)
 }
 
-func normalizeVector(vector map[int64]float32) {
+func normalizeVector(vector map[utils.UID]float32) {
 	magnitude := float32(0)
 	for _, val := range vector {
 		magnitude += val * val
@@ -52,10 +52,10 @@ func normalizeVector(vector map[int64]float32) {
 	}
 }
 
-func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
-	result := map[int64]float32{}
+func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
+	result := map[utils.UID]float32{}
 
-	uniqueTasks := map[int64]struct{}{}
+	uniqueTasks := map[utils.UID]struct{}{}
 	row := TaskTagLink{}
 
 	ok, err := reader.Next(&row.TaskID, &row.TagID)
@@ -82,14 +82,14 @@ func readUserProfile(reader db.ResponseReader) (map[int64]float32, error) {
 	return result, nil
 }
 
-func readTasksTags(reader db.ResponseReader) (map[int64]map[int64]float32, error) {
-	result := map[int64]map[int64]float32{}
+func readTasksTags(reader db.ResponseReader) (map[utils.UID]map[utils.UID]float32, error) {
+	result := map[utils.UID]map[utils.UID]float32{}
 
 	row := TaskTagLink{}
 	ok, err := reader.Next(&row.TaskID, &row.TagID)
 	for ; ok; ok, err = reader.Next(&row.TaskID, &row.TagID) {
 		if _, contains := result[row.TaskID]; !contains {
-			result[row.TaskID] = map[int64]float32{}
+			result[row.TaskID] = map[utils.UID]float32{}
 		}
 
 		result[row.TaskID][row.TagID] = 1
