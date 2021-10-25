@@ -85,7 +85,7 @@ func HandleGetTasksFeed(w http.ResponseWriter, r *http.Request) utils.HandlerRes
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
 	}
 
-	scope := mux.Vars(r)["scope"]
+	scope := r.FormValue("scope")
 	reader, err := getTasksFeedReader(db.GetSQLClient(), uid, scope)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
