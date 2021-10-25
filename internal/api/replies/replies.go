@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -13,39 +12,94 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
+const (
+	ALL  = "ALL"
+	USER = "USER"
+	DOER = "DOER"
+)
+
 type Reply struct {
-	Id             int64     `json:"id"`
-	Text           string    `json:"text"`
-	DoerName       string    `json:"doerName"`
-	DoerID         int64     `json:"-"`
-	TaskCustomerID int64     `json:"-"`
-	Hidden         bool      `json:"hidden"`
-	CreatedAt      time.Time `json:"createdAt"`
+	Id        utils.UID      `json:"id"`
+	Text      string         `json:"text"`
+	Creator   utils.UserData `json:"creator"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
-func getRepliesReader(client *db.SQLClient, taskID int64) (db.ResponseReader, error) {
-	return client.Query(`SELECT reply_id, text, users.name, customer_id, hidden, tasks.created_at
+type RepliesReaders struct {
+	UserReplyReader, DoerReplyReader, AllRepliesReader db.ResponseReader
+}
+
+type TaskReplies struct {
+	User *Reply  `json:"user"`
+	Doer *Reply  `json:"doer"`
+	All  []Reply `json:"all"`
+}
+
+func getRepliesReader(client *db.SQLClient, userID utils.UID, taskID utils.UID, scope string) (db.ResponseReader, error) {
+	switch scope {
+	case USER:
+		return client.Query(`SELECT reply_id, text, users.user_id, users.name, tasks.created_at
+							FROM tasks JOIN replies 
+							ON tasks.task_id = replies.task_id
+							AND tasks.task_id = $1
+							AND creator_id = $2
+							AND hidden = false
+							JOIN users
+							ON replies.creator_id = users.user_id
+							ORDER BY created_at`, taskID, userID)
+	case DOER:
+		return client.Query(`SELECT reply_id, text, users.user_id, users.name, customer_id, tasks.created_at
+							FROM tasks JOIN replies 
+							ON tasks.task_id = replies.task_id
+							AND tasks.task_id = $1
+							AND creator_id = doer_id
+							AND hidden = false
+							JOIN users
+							ON replies.creator_id = users.user_id
+							ORDER BY created_at`, taskID)
+	}
+	return client.Query(`SELECT reply_id, text, users.user_id, users.name, customer_id, tasks.created_at
 						FROM tasks JOIN replies 
 						ON tasks.task_id = replies.task_id
 						AND tasks.task_id = $1
+						AND hidden = false
 						JOIN users
 						ON replies.creator_id = users.user_id
 						ORDER BY created_at`, taskID)
 }
 
-func getReplies(reader db.ResponseReader, userID int64) ([]Reply, error) {
-	result := []Reply{}
+func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
+	result := TaskReplies{}
 	row := Reply{}
-	ok, err := reader.Next(&row.Id, &row.Text, &row.DoerName, &row.TaskCustomerID, &row.Hidden, &row.CreatedAt)
-	for ; ok; ok, err = reader.Next(&row.Id, &row.Text, &row.DoerName, &row.TaskCustomerID, &row.Hidden, &row.CreatedAt) {
-		if userID == row.TaskCustomerID || userID == row.DoerID {
-			result = append(result, row)
-		}
+	taskCustomerID := utils.UID(0)
+
+	found, err := readers.UserReplyReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	if err != nil {
+		return result, err
+	}
+	if found {
+		result.User = &row
 	}
 
+	found, err = readers.DoerReplyReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
+	if found && userID == taskCustomerID {
+		result.Doer = &row
+	}
+
+	replies := []Reply{}
+	ok, err := readers.AllRepliesReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
+	for ; ok; ok, err = readers.AllRepliesReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt) {
+		if userID == taskCustomerID {
+			replies = append(replies, row)
+		}
+	}
+	if err != nil {
+		return result, err
+	}
+	result.All = replies
 
 	return result, nil
 }
@@ -56,18 +110,37 @@ func HandleGetReplies(w http.ResponseWriter, r *http.Request) utils.HandlerRespo
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
 	}
 
-	taskID, err := strconv.ParseInt(mux.Vars(r)["task"], 10, 64)
+	var taskID utils.UID
+	err = taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	reader, err := getRepliesReader(db.GetSQLClient(), taskID)
+	userReplyReader, err := getRepliesReader(db.GetSQLClient(), uid, taskID, USER)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
-	defer reader.Close()
+	defer userReplyReader.Close()
 
-	replies, err := getReplies(reader, uid)
+	doerReplyReader, err := getRepliesReader(db.GetSQLClient(), uid, taskID, DOER)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+	defer doerReplyReader.Close()
+
+	allRepliesReader, err := getRepliesReader(db.GetSQLClient(), uid, taskID, ALL)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+	defer allRepliesReader.Close()
+
+	readers := RepliesReaders{
+		UserReplyReader:  userReplyReader,
+		DoerReplyReader:  doerReplyReader,
+		AllRepliesReader: allRepliesReader,
+	}
+
+	replies, err := getReplies(readers, uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
@@ -75,7 +148,7 @@ func HandleGetReplies(w http.ResponseWriter, r *http.Request) utils.HandlerRespo
 	return utils.MakeHandlerResponse(http.StatusOK, replies, nil)
 }
 
-func createReply(client *db.SQLClient, reply Reply, userID int64, taskID int64) error {
+func createReply(client *db.SQLClient, reply Reply, userID utils.UID, taskID utils.UID) error {
 	reader, err := client.Query("INSERT INTO replies(task_id, text, creator_id) VALUES ($1, $2, $3)", taskID, reply.Text, userID)
 	reader.Close()
 	return err
@@ -110,7 +183,8 @@ func HandleCreateReply(w http.ResponseWriter, r *http.Request) utils.HandlerResp
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	taskID, err := strconv.ParseInt(mux.Vars(r)["task"], 10, 64)
+	var taskID utils.UID
+	err = taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
