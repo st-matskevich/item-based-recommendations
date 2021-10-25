@@ -66,14 +66,18 @@ func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (d
 func getTasksFeed(reader db.ResponseReader, userID utils.UID) ([]Task, error) {
 	result := []Task{}
 	row := Task{}
-	ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
-	for ; ok; ok, err = reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt) {
+
+	for {
+		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
 		row.Owns = userID == row.Customer.ID
 		result = append(result, row)
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	return result, nil

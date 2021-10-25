@@ -60,8 +60,15 @@ func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 	uniqueTasks := map[utils.UID]struct{}{}
 	row := TaskTagLink{}
 
-	ok, err := reader.NextRow(&row.TaskID, &row.TagID)
-	for ; ok; ok, err = reader.NextRow(&row.TaskID, &row.TagID) {
+	for {
+		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
 		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
 		if _, contains := result[row.TagID]; !contains {
 			result[row.TagID] = 1
@@ -69,10 +76,6 @@ func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 			result[row.TagID] += 1
 		}
 		uniqueTasks[row.TaskID] = struct{}{}
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	for tagID := range result {
@@ -88,17 +91,20 @@ func readTasksTags(reader db.ResponseReader) (map[utils.UID]map[utils.UID]float3
 	result := map[utils.UID]map[utils.UID]float32{}
 
 	row := TaskTagLink{}
-	ok, err := reader.NextRow(&row.TaskID, &row.TagID)
-	for ; ok; ok, err = reader.NextRow(&row.TaskID, &row.TagID) {
+	for {
+		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
 		if _, contains := result[row.TaskID]; !contains {
 			result[row.TaskID] = map[utils.UID]float32{}
 		}
 
 		result[row.TaskID][row.TagID] = 1
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	for taskID := range result {

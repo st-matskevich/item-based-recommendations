@@ -90,15 +90,20 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 	}
 
 	replies := []Reply{}
-	ok, err := readers.AllRepliesReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
-	for ; ok; ok, err = readers.AllRepliesReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt) {
+	for {
+		ok, err := readers.AllRepliesReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
+		if err != nil {
+			return result, err
+		}
+		if !ok {
+			break
+		}
+
 		if userID == taskCustomerID {
 			replies = append(replies, row)
 		}
 	}
-	if err != nil {
-		return result, err
-	}
+
 	result.All = replies
 
 	return result, nil
