@@ -10,17 +10,12 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
-type UserProfile struct {
-	Name       string `json:"name"`
-	IsCustomer bool   `json:"customer"`
-}
-
 func getUserProfileReader(client *db.SQLClient, userID utils.UID) (db.ResponseReader, error) {
 	return client.Query("SELECT name, is_customer FROM users WHERE user_id = $1", userID)
 }
 
-func getUserProfile(reader db.ResponseReader) (UserProfile, error) {
-	result := UserProfile{}
+func getUserProfile(reader db.ResponseReader) (utils.UserData, error) {
+	result := utils.UserData{}
 	err := reader.GetRow(&result.Name, &result.IsCustomer)
 	return result, err
 }
@@ -45,13 +40,13 @@ func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 	return utils.MakeHandlerResponse(http.StatusOK, profile, nil)
 }
 
-func setUserProfile(client *db.SQLClient, profile UserProfile, userID utils.UID) error {
+func setUserProfile(client *db.SQLClient, profile utils.UserData, userID utils.UID) error {
 	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", userID, profile.Name, profile.IsCustomer)
 	reader.Close()
 	return err
 }
 
-func parseUserProfile(profile UserProfile) error {
+func parseUserProfile(profile utils.UserData) error {
 	if profile.Name == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -69,7 +64,7 @@ func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerR
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
 	}
 
-	input := UserProfile{}
+	input := utils.UserData{}
 	err = json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)

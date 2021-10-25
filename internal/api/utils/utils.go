@@ -63,6 +63,7 @@ func (val *UID) FromString(enc string) error {
 }
 
 type UserData struct {
-	ID   UID    `json:"id"`
-	Name string `json:"name"`
+	ID         UID    `json:"id"`
+	Name       string `json:"name"`
+	IsCustomer *bool  `json:"customer,omitempty"`
 }
