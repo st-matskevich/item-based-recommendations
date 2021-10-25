@@ -60,8 +60,8 @@ func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 	uniqueTasks := map[utils.UID]struct{}{}
 	row := TaskTagLink{}
 
-	ok, err := reader.Next(&row.TaskID, &row.TagID)
-	for ; ok; ok, err = reader.Next(&row.TaskID, &row.TagID) {
+	ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+	for ; ok; ok, err = reader.NextRow(&row.TaskID, &row.TagID) {
 		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
 		if _, contains := result[row.TagID]; !contains {
 			result[row.TagID] = 1
@@ -88,8 +88,8 @@ func readTasksTags(reader db.ResponseReader) (map[utils.UID]map[utils.UID]float3
 	result := map[utils.UID]map[utils.UID]float32{}
 
 	row := TaskTagLink{}
-	ok, err := reader.Next(&row.TaskID, &row.TagID)
-	for ; ok; ok, err = reader.Next(&row.TaskID, &row.TagID) {
+	ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+	for ; ok; ok, err = reader.NextRow(&row.TaskID, &row.TagID) {
 		if _, contains := result[row.TaskID]; !contains {
 			result[row.TaskID] = map[utils.UID]float32{}
 		}

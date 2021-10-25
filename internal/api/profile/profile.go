@@ -21,10 +21,7 @@ func getUserProfileReader(client *db.SQLClient, userID utils.UID) (db.ResponseRe
 
 func getUserProfile(reader db.ResponseReader) (UserProfile, error) {
 	result := UserProfile{}
-	found, err := reader.Next(&result.Name, &result.IsCustomer)
-	if !found && err == nil {
-		err = errors.New(utils.SQL_NO_RESULT)
-	}
+	err := reader.GetRow(&result.Name, &result.IsCustomer)
 	return result, err
 }
 

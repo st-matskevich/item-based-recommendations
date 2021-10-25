@@ -20,7 +20,7 @@ type FakeResponseReader struct {
 	last int
 }
 
-func (reader *FakeResponseReader) Next(dest ...interface{}) (bool, error) {
+func (reader *FakeResponseReader) NextRow(dest ...interface{}) (bool, error) {
 	result := false
 	if reader.last < len(reader.rows) {
 		*dest[0].(*utils.UID) = reader.rows[reader.last].TaskID
@@ -31,7 +31,8 @@ func (reader *FakeResponseReader) Next(dest ...interface{}) (bool, error) {
 	return result, nil
 }
 
-func (reader *FakeResponseReader) Close() {}
+func (reader *FakeResponseReader) GetRow(dest ...interface{}) error { return nil }
+func (reader *FakeResponseReader) Close()                           {}
 
 func TestNormalizeVector(t *testing.T) {
 	tests := []struct {

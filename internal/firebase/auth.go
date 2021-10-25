@@ -6,7 +6,6 @@ package firebase
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"firebase.google.com/go/auth"
@@ -37,11 +36,8 @@ func mapFirebaseUIDToUserID(UID string) (utils.UID, error) {
 		}
 	}
 
-	found, err := reader.Next(&result)
+	err = reader.GetRow(&result)
 	reader.Close()
-	if !found && err == nil {
-		err = errors.New(utils.SQL_NO_RESULT)
-	}
 	return utils.UID(result), err
 }
 

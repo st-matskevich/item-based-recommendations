@@ -66,8 +66,8 @@ func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (d
 func getTasksFeed(reader db.ResponseReader, userID utils.UID) ([]Task, error) {
 	result := []Task{}
 	row := Task{}
-	ok, err := reader.Next(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
-	for ; ok; ok, err = reader.Next(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt) {
+	ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
+	for ; ok; ok, err = reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt) {
 		row.Owns = userID == row.Customer.ID
 		result = append(result, row)
 	}
@@ -114,9 +114,10 @@ func getTaskReader(client *db.SQLClient, taskID utils.UID) (db.ResponseReader, e
 
 func getTask(reader db.ResponseReader, userID utils.UID) (Task, error) {
 	result := Task{}
-	found, err := reader.Next(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.RepliesCount, &result.CreatedAt)
-	if !found && err == nil {
-		err = errors.New(utils.SQL_NO_RESULT)
+	err := reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.RepliesCount, &result.CreatedAt)
+
+	if err != nil {
+		return result, err
 	}
 
 	result.Owns = userID == result.Customer.ID
@@ -204,11 +205,7 @@ func getTaskCustomer(client *db.SQLClient, taskID utils.UID) (utils.UID, error) 
 	}
 	defer reader.Close()
 
-	found, err := reader.Next(&customer)
-	if !found && err == nil {
-		err = errors.New(utils.SQL_NO_RESULT)
-	}
-
+	err = reader.GetRow(&customer)
 	return customer, err
 }
 

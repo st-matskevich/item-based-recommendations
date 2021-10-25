@@ -73,7 +73,7 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 	row := Reply{}
 	taskCustomerID := utils.UID(0)
 
-	found, err := readers.UserReplyReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	found, err := readers.UserReplyReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
 	if err != nil {
 		return result, err
 	}
@@ -81,7 +81,7 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 		result.User = &row
 	}
 
-	found, err = readers.DoerReplyReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
+	found, err = readers.DoerReplyReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
 	if err != nil {
 		return result, err
 	}
@@ -90,8 +90,8 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 	}
 
 	replies := []Reply{}
-	ok, err := readers.AllRepliesReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
-	for ; ok; ok, err = readers.AllRepliesReader.Next(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt) {
+	ok, err := readers.AllRepliesReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt)
+	for ; ok; ok, err = readers.AllRepliesReader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &taskCustomerID, &row.CreatedAt) {
 		if userID == taskCustomerID {
 			replies = append(replies, row)
 		}

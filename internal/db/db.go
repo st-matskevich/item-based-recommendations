@@ -5,7 +5,8 @@ import (
 )
 
 type ResponseReader interface {
-	Next(dest ...interface{}) (bool, error)
+	NextRow(dest ...interface{}) (bool, error)
+	GetRow(dest ...interface{}) error
 	Close()
 }
 
@@ -13,12 +14,20 @@ type SQLResponseReader struct {
 	rows *sql.Rows
 }
 
-func (reader *SQLResponseReader) Next(dest ...interface{}) (bool, error) {
+func (reader *SQLResponseReader) NextRow(dest ...interface{}) (bool, error) {
 	if reader.rows.Next() {
 		err := reader.rows.Scan(dest...)
 		return err == nil, err
 	}
 	return false, reader.rows.Err()
+}
+
+func (reader *SQLResponseReader) GetRow(dest ...interface{}) error {
+	found, err := reader.NextRow(dest...)
+	if !found && err == nil {
+		err = sql.ErrNoRows
+	}
+	return err
 }
 
 func (reader *SQLResponseReader) Close() {
