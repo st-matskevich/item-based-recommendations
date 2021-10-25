@@ -146,6 +146,7 @@ func HandleGetReplies(w http.ResponseWriter, r *http.Request) utils.HandlerRespo
 	return utils.MakeHandlerResponse(http.StatusOK, replies, nil)
 }
 
+//TODO: check if user is customer of the task
 func createReply(client *db.SQLClient, reply Reply, userID utils.UID, taskID utils.UID) error {
 	reader, err := client.Query("INSERT INTO replies(task_id, text, creator_id) VALUES ($1, $2, $3)", taskID, reply.Text, userID)
 	reader.Close()
