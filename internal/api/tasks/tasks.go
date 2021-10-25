@@ -32,7 +32,7 @@ type Task struct {
 func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case CUSTOMER:
-		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(replies.task_id) as replies_count, tasks.created_at
+		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
 							FROM tasks 
 							JOIN users 
 							ON tasks.customer_id = users.user_id
@@ -42,7 +42,7 @@ func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (d
 							GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 							ORDER BY tasks.task_id`, userID)
 	case DOER:
-		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(replies.task_id) as replies_count, tasks.created_at
+		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
 							FROM tasks 
 							JOIN users 
 							ON tasks.customer_id = users.user_id
@@ -52,7 +52,7 @@ func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (d
 							GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 							ORDER BY tasks.task_id`, userID)
 	}
-	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(replies.task_id) as replies_count, tasks.created_at
+	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
 						FROM tasks 
 						JOIN users 
 						ON tasks.customer_id = users.user_id
@@ -65,12 +65,10 @@ func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (d
 
 func getTasksFeed(reader db.ResponseReader, userID utils.UID) ([]Task, error) {
 	result := []Task{}
-	doer := (*utils.UID)(nil)
 	row := Task{}
-	ok, err := reader.Next(&row.ID, &row.Name, &doer, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
-	for ; ok; ok, err = reader.Next(&row.ID, &row.Name, &doer, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt) {
+	ok, err := reader.Next(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
+	for ; ok; ok, err = reader.Next(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt) {
 		row.Owns = userID == row.Customer.ID
-		row.Closed = doer != nil
 		result = append(result, row)
 	}
 
@@ -103,7 +101,7 @@ func HandleGetTasksFeed(w http.ResponseWriter, r *http.Request) utils.HandlerRes
 }
 
 func getTaskReader(client *db.SQLClient, taskID utils.UID) (db.ResponseReader, error) {
-	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id, users.user_id, users.name, COUNT(replies.task_id) as replies_count, tasks.created_at  
+	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at  
 						FROM tasks 
 						JOIN users 
 						ON tasks.customer_id = users.user_id
@@ -116,14 +114,12 @@ func getTaskReader(client *db.SQLClient, taskID utils.UID) (db.ResponseReader, e
 
 func getTask(reader db.ResponseReader, userID utils.UID) (Task, error) {
 	result := Task{}
-	doer := (*utils.UID)(nil)
-	found, err := reader.Next(&result.ID, &result.Name, &result.Description, &doer, &result.Customer.ID, &result.Customer.Name, &result.RepliesCount, &result.CreatedAt)
+	found, err := reader.Next(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.RepliesCount, &result.CreatedAt)
 	if !found && err == nil {
 		err = errors.New(utils.SQL_NO_RESULT)
 	}
 
 	result.Owns = userID == result.Customer.ID
-	result.Closed = doer != nil
 	return result, err
 }
 
