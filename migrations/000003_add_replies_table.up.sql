@@ -4,4 +4,5 @@ CREATE TABLE replies(
     text VARCHAR(512) NOT NULL,
     creator_id BIGINT NOT NULL,
     hidden BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP NOT NULL DEFAULT now());
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    UNIQUE (task_id, creator_id));
