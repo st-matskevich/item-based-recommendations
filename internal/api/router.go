@@ -129,4 +129,10 @@ var routes = []Route{
 		"/tasks/{task}/replies",
 		replies.HandleCreateReply,
 	},
+	{
+		"Set Task Doer",
+		"POST",
+		"/tasks/{task}/doer",
+		tasks.HandleSetDoer,
+	},
 }

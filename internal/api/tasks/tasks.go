@@ -199,3 +199,65 @@ func HandleCreateTask(w http.ResponseWriter, r *http.Request) utils.HandlerRespo
 
 	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)
 }
+
+func getTaskCustomer(client *db.SQLClient, taskID utils.UID) (utils.UID, error) {
+	customer := utils.UID(0)
+	reader, err := client.Query("SELECT customer_id FROM tasks WHERE task_id = $1", taskID)
+	if err != nil {
+		return customer, err
+	}
+	defer reader.Close()
+
+	found, err := reader.Next(&customer)
+	if !found && err == nil {
+		err = errors.New(utils.SQL_NO_RESULT)
+	}
+
+	return customer, err
+}
+
+func setTaskDoer(client *db.SQLClient, taskID utils.UID, doerID utils.UID) error {
+	reader, err := client.Query("UPDATE tasks SET doer_id = $2 WHERE task_id = $1", taskID, doerID)
+	reader.Close()
+	return err
+}
+
+func canSetDoer(userID utils.UID, customerID utils.UID) bool {
+	return userID == customerID
+}
+
+func HandleSetDoer(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
+	}
+
+	doer := utils.UserData{}
+	err = json.NewDecoder(r.Body).Decode(&doer)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	taskID := utils.UID(0)
+	err = taskID.FromString(mux.Vars(r)["task"])
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	customer, err := getTaskCustomer(db.GetSQLClient(), taskID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	if !canSetDoer(uid, customer) {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), errors.New(utils.INSUFFICIENT_RIGHTS))
+	}
+
+	err = setTaskDoer(db.GetSQLClient(), taskID, doer.ID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)
+
+}
