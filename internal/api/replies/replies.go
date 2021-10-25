@@ -38,34 +38,32 @@ type TaskReplies struct {
 func getRepliesReader(client *db.SQLClient, userID utils.UID, taskID utils.UID, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case USER:
-		return client.Query(`SELECT reply_id, text, users.user_id, users.name, tasks.created_at
+		return client.Query(`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.created_at
 							FROM tasks JOIN replies 
 							ON tasks.task_id = replies.task_id
 							AND tasks.task_id = $1
-							AND creator_id = $2
-							AND hidden = false
+							AND replies.creator_id = $2
 							JOIN users
 							ON replies.creator_id = users.user_id
-							ORDER BY created_at`, taskID, userID)
+							ORDER BY replies.reply_id`, taskID, userID)
 	case DOER:
-		return client.Query(`SELECT reply_id, text, users.user_id, users.name, customer_id, tasks.created_at
+		return client.Query(`SELECT replies.reply_id, replies.text, users.user_id, users.name, tasks.customer_id, replies.created_at
 							FROM tasks JOIN replies 
 							ON tasks.task_id = replies.task_id
 							AND tasks.task_id = $1
-							AND creator_id = doer_id
-							AND hidden = false
+							AND tasks.doer_id = replies.creator_id
 							JOIN users
 							ON replies.creator_id = users.user_id
-							ORDER BY created_at`, taskID)
+							ORDER BY replies.reply_id`, taskID)
 	}
-	return client.Query(`SELECT reply_id, text, users.user_id, users.name, customer_id, tasks.created_at
+	return client.Query(`SELECT replies.reply_id, replies.text, users.user_id, users.name, tasks.customer_id, replies.created_at
 						FROM tasks JOIN replies 
 						ON tasks.task_id = replies.task_id
 						AND tasks.task_id = $1
-						AND hidden = false
+						AND replies.hidden = false
 						JOIN users
 						ON replies.creator_id = users.user_id
-						ORDER BY created_at`, taskID)
+						ORDER BY replies.reply_id`, taskID)
 }
 
 func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
