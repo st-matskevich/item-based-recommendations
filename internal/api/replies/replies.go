@@ -35,6 +35,8 @@ type TaskReplies struct {
 	All  []Reply `json:"all"`
 }
 
+//TODO: should USER and DOER be excluded from ALL?
+//proably not, because if DOER is not null, ALL will not be rendered
 func getRepliesReader(client *db.SQLClient, userID utils.UID, taskID utils.UID, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case USER:
