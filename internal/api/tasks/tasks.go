@@ -32,32 +32,32 @@ type Task struct {
 func getTasksFeedReader(client *db.SQLClient, userID utils.UID, scope string) (db.ResponseReader, error) {
 	switch scope {
 	case CUSTOMER:
-		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(*) as replies_count, tasks.created_at
+		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(DISTINCT replies.task_id) as replies_count, tasks.created_at
 							FROM tasks 
 							JOIN users 
 							ON tasks.customer_id = users.user_id
 							AND tasks.customer_id = $1
-							JOIN replies
+							LEFT JOIN replies
 							ON tasks.task_id = replies.task_id
 							GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 							ORDER BY tasks.task_id`, userID)
 	case DOER:
-		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(*) as replies_count, tasks.created_at
+		return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(DISTINCT replies.task_id) as replies_count, tasks.created_at
 							FROM tasks 
 							JOIN users 
 							ON tasks.customer_id = users.user_id
 							AND tasks.doer_id = $1
-							JOIN replies
+							LEFT JOIN replies
 							ON tasks.task_id = replies.task_id
 							GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 							ORDER BY tasks.task_id`, userID)
 	}
-	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(*) as replies_count, tasks.created_at
+	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, COUNT(DISTINCT replies.task_id) as replies_count, tasks.created_at
 						FROM tasks 
 						JOIN users 
 						ON tasks.customer_id = users.user_id
 						AND tasks.doer_id IS NULL
-						JOIN replies
+						LEFT JOIN replies
 						ON tasks.task_id = replies.task_id
 						GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 						ORDER BY tasks.task_id`)
@@ -103,12 +103,12 @@ func HandleGetTasksFeed(w http.ResponseWriter, r *http.Request) utils.HandlerRes
 }
 
 func getTaskReader(client *db.SQLClient, taskID utils.UID) (db.ResponseReader, error) {
-	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id, users.user_id, users.name, COUNT(*) as replies_count, tasks.created_at  
+	return client.Query(`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id, users.user_id, users.name, COUNT(DISTINCT replies.task_id) as replies_count, tasks.created_at  
 						FROM tasks 
 						JOIN users 
 						ON tasks.customer_id = users.user_id
 						AND tasks.task_id = $1
-						JOIN replies
+						LEFT JOIN replies
 						ON tasks.task_id = replies.task_id
 						GROUP BY tasks.task_id, tasks.name, tasks.description, tasks.doer_id, users.user_id, users.name, tasks.created_at
 						ORDER BY tasks.task_id`, taskID)
