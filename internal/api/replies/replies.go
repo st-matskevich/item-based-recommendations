@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
-	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 const (
@@ -109,14 +108,9 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 	return result, nil
 }
 
-func HandleGetReplies(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleGetReplies(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	var taskID utils.UID
-	err = taskID.FromString(mux.Vars(r)["task"])
+	err := taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
@@ -172,14 +166,9 @@ func parseReply(reply Reply) error {
 	return nil
 }
 
-func HandleCreateReply(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleCreateReply(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	input := Reply{}
-	err = json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}

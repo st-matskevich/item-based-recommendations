@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
-	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 const (
@@ -83,12 +82,7 @@ func getTasksFeed(reader db.ResponseReader, userID utils.UID) ([]Task, error) {
 	return result, nil
 }
 
-func HandleGetTasksFeed(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleGetTasksFeed(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	scope := r.FormValue("scope")
 	reader, err := getTasksFeedReader(db.GetSQLClient(), uid, scope)
 	if err != nil {
@@ -128,14 +122,9 @@ func getTask(reader db.ResponseReader, userID utils.UID) (Task, error) {
 	return result, err
 }
 
-func HandleGetTask(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleGetTask(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	var taskID utils.UID
-	err = taskID.FromString(mux.Vars(r)["task"])
+	err := taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
@@ -176,14 +165,9 @@ func parseTask(task Task) error {
 	return nil
 }
 
-func HandleCreateTask(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleCreateTask(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	input := Task{}
-	err = json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
@@ -223,14 +207,9 @@ func canSetDoer(userID utils.UID, customerID utils.UID) bool {
 	return userID == customerID
 }
 
-func HandleSetDoer(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleSetDoer(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	doer := utils.UserData{}
-	err = json.NewDecoder(r.Body).Decode(&doer)
+	err := json.NewDecoder(r.Body).Decode(&doer)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}

@@ -12,15 +12,17 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/api/similarity"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/tasks"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
+	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
-type Handler func(http.ResponseWriter, *http.Request) utils.HandlerResponse
+type BaseHandler func(http.ResponseWriter, *http.Request) utils.HandlerResponse
+type AuthHandler func(utils.UID, http.ResponseWriter, *http.Request) utils.HandlerResponse
 
 type Route struct {
 	Name        string
 	Method      string
 	Pattern     string
-	HandlerFunc Handler
+	HandlerFunc BaseHandler
 }
 
 func addCORSHeaders(w http.ResponseWriter) {
@@ -28,7 +30,18 @@ func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 }
 
-func BaseHandler(inner Handler, name string) http.Handler {
+func AuthMiddleware(inner AuthHandler) BaseHandler {
+	return BaseHandler(func(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+		uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
+		if err != nil {
+			return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
+		}
+
+		return inner(uid, w, r)
+	})
+}
+
+func BaseMiddleware(inner BaseHandler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -64,12 +77,10 @@ func MakeRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	//TODO: this should be removed in prod
-	router.Methods("OPTIONS").Handler(BaseHandler(utils.HandleCORS, "CORS"))
+	router.Methods("OPTIONS").Handler(BaseMiddleware(utils.HandleCORS, "CORS"))
 
 	for _, route := range routes {
-
-		handler := BaseHandler(route.HandlerFunc, route.Name)
-
+		handler := BaseMiddleware(route.HandlerFunc, route.Name)
 		router.
 			Methods(route.Method).
 			Path(route.Pattern).
@@ -85,54 +96,54 @@ var routes = []Route{
 		"Get Recommendations",
 		"GET",
 		"/recommendations",
-		similarity.HandleGetRecommendations,
+		AuthMiddleware(similarity.HandleGetRecommendations),
 	},
 	{
 		"Get User Profile",
 		"GET",
 		"/profile",
-		profile.HandleGetUserProfile,
+		AuthMiddleware(profile.HandleGetUserProfile),
 	},
 	{
 		"Set User Profile",
 		"POST",
 		"/profile",
-		profile.HandleSetUserProfile,
+		AuthMiddleware(profile.HandleSetUserProfile),
 	},
 	{
 		"Get Tasks Feed",
 		"GET",
 		"/tasks",
-		tasks.HandleGetTasksFeed,
+		AuthMiddleware(tasks.HandleGetTasksFeed),
 	},
 	{
 		"Get Task",
 		"GET",
 		"/tasks/{task}",
-		tasks.HandleGetTask,
+		AuthMiddleware(tasks.HandleGetTask),
 	},
 	{
 		"Create Task",
 		"POST",
 		"/tasks",
-		tasks.HandleCreateTask,
+		AuthMiddleware(tasks.HandleCreateTask),
 	},
 	{
 		"Get Replies",
 		"GET",
 		"/tasks/{task}/replies",
-		replies.HandleGetReplies,
+		AuthMiddleware(replies.HandleGetReplies),
 	},
 	{
 		"Create Reply",
 		"POST",
 		"/tasks/{task}/replies",
-		replies.HandleCreateReply,
+		AuthMiddleware(replies.HandleCreateReply),
 	},
 	{
 		"Set Task Doer",
 		"POST",
 		"/tasks/{task}/doer",
-		tasks.HandleSetDoer,
+		AuthMiddleware(tasks.HandleSetDoer),
 	},
 }

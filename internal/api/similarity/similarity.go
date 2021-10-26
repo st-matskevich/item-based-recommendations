@@ -6,7 +6,6 @@ import (
 
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
-	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 //TODO: similarity field should be private in production
@@ -154,12 +153,7 @@ func getSimilarTasks(readers ProfilesReaders, topSize int) ([]TaskSimilarity, er
 
 const MAX_RECOMMENDED_POSTS = 5
 
-func HandleGetRecommendations(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleGetRecommendations(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	profileReader, err := getUserProfileReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)

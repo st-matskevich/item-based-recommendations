@@ -7,7 +7,6 @@ import (
 
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
-	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
 func getUserProfileReader(client *db.SQLClient, userID utils.UID) (db.ResponseReader, error) {
@@ -20,12 +19,7 @@ func getUserProfile(reader db.ResponseReader) (utils.UserData, error) {
 	return result, err
 }
 
-func HandleGetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleGetUserProfile(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	reader, err := getUserProfileReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
@@ -58,14 +52,9 @@ func parseUserProfile(profile utils.UserData) error {
 	return nil
 }
 
-func HandleSetUserProfile(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-	}
-
+func HandleSetUserProfile(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
 	input := utils.UserData{}
-	err = json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
