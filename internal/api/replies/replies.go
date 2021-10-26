@@ -108,8 +108,10 @@ func getReplies(readers RepliesReaders, userID utils.UID) (TaskReplies, error) {
 	return result, nil
 }
 
-func HandleGetReplies(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	var taskID utils.UID
+func HandleGetReplies(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
+	taskID := utils.UID(0)
 	err := taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
@@ -166,7 +168,9 @@ func parseReply(reply Reply) error {
 	return nil
 }
 
-func HandleCreateReply(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleCreateReply(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	input := Reply{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {

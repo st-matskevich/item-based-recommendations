@@ -1,9 +1,9 @@
 package utils
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
-	"net/http"
 	"strconv"
 )
 
@@ -23,10 +23,6 @@ type HandlerResponse struct {
 
 func MakeHandlerResponse(code int, response interface{}, err error) HandlerResponse {
 	return HandlerResponse{code, response, err}
-}
-
-func HandleCORS(w http.ResponseWriter, r *http.Request) HandlerResponse {
-	return HandlerResponse{http.StatusOK, struct{}{}, nil}
 }
 
 type UID int64
@@ -66,4 +62,14 @@ type UserData struct {
 	ID         UID    `json:"id"`
 	Name       string `json:"name"`
 	IsCustomer *bool  `json:"customer,omitempty"`
+}
+
+type ContextKey int
+
+const (
+	USER_ID_CTX_KEY ContextKey = 0
+)
+
+func GetUserID(ctx context.Context) UID {
+	return ctx.Value(USER_ID_CTX_KEY).(UID)
 }

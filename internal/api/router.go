@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -15,8 +16,7 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
-type BaseHandler func(http.ResponseWriter, *http.Request) utils.HandlerResponse
-type AuthHandler func(utils.UID, http.ResponseWriter, *http.Request) utils.HandlerResponse
+type BaseHandler func(*http.Request) utils.HandlerResponse
 
 type Route struct {
 	Name        string
@@ -30,14 +30,19 @@ func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 }
 
-func AuthMiddleware(inner AuthHandler) BaseHandler {
-	return BaseHandler(func(w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleCORS(r *http.Request) utils.HandlerResponse {
+	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)
+}
+
+func AuthMiddleware(inner BaseHandler) BaseHandler {
+	return BaseHandler(func(r *http.Request) utils.HandlerResponse {
 		uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
 		if err != nil {
 			return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
 		}
+		ctx := context.WithValue(r.Context(), utils.USER_ID_CTX_KEY, uid)
 
-		return inner(uid, w, r)
+		return inner(r.WithContext(ctx))
 	})
 }
 
@@ -48,7 +53,7 @@ func BaseMiddleware(inner BaseHandler, name string) http.Handler {
 		//TODO: this should be removed in prod
 		addCORSHeaders(w)
 
-		response := inner(w, r)
+		response := inner(r)
 
 		log.Printf(
 			"%-8s %-64s %d %-32s %-10s",
@@ -77,7 +82,7 @@ func MakeRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	//TODO: this should be removed in prod
-	router.Methods("OPTIONS").Handler(BaseMiddleware(utils.HandleCORS, "CORS"))
+	router.Methods("OPTIONS").Handler(BaseMiddleware(HandleCORS, "CORS"))
 
 	for _, route := range routes {
 		handler := BaseMiddleware(route.HandlerFunc, route.Name)

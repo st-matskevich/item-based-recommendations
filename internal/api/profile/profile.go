@@ -19,7 +19,9 @@ func getUserProfile(reader db.ResponseReader) (utils.UserData, error) {
 	return result, err
 }
 
-func HandleGetUserProfile(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetUserProfile(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	reader, err := getUserProfileReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
@@ -52,7 +54,9 @@ func parseUserProfile(profile utils.UserData) error {
 	return nil
 }
 
-func HandleSetUserProfile(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleSetUserProfile(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	input := utils.UserData{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {

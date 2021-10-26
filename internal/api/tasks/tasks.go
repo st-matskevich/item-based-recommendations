@@ -82,7 +82,9 @@ func getTasksFeed(reader db.ResponseReader, userID utils.UID) ([]Task, error) {
 	return result, nil
 }
 
-func HandleGetTasksFeed(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetTasksFeed(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	scope := r.FormValue("scope")
 	reader, err := getTasksFeedReader(db.GetSQLClient(), uid, scope)
 	if err != nil {
@@ -122,8 +124,10 @@ func getTask(reader db.ResponseReader, userID utils.UID) (Task, error) {
 	return result, err
 }
 
-func HandleGetTask(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
-	var taskID utils.UID
+func HandleGetTask(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
+	taskID := utils.UID(0)
 	err := taskID.FromString(mux.Vars(r)["task"])
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
@@ -165,7 +169,9 @@ func parseTask(task Task) error {
 	return nil
 }
 
-func HandleCreateTask(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleCreateTask(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	input := Task{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
@@ -207,7 +213,9 @@ func canSetDoer(userID utils.UID, customerID utils.UID) bool {
 	return userID == customerID
 }
 
-func HandleSetDoer(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleSetDoer(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	doer := utils.UserData{}
 	err := json.NewDecoder(r.Body).Decode(&doer)
 	if err != nil {

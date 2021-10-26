@@ -153,7 +153,9 @@ func getSimilarTasks(readers ProfilesReaders, topSize int) ([]TaskSimilarity, er
 
 const MAX_RECOMMENDED_POSTS = 5
 
-func HandleGetRecommendations(uid utils.UID, w http.ResponseWriter, r *http.Request) utils.HandlerResponse {
+func HandleGetRecommendations(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
 	profileReader, err := getUserProfileReader(db.GetSQLClient(), uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
