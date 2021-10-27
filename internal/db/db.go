@@ -47,6 +47,11 @@ func (client *SQLClient) Query(query string, args ...interface{}) (*SQLResponseR
 	return &SQLResponseReader{response}, err
 }
 
+func (client *SQLClient) Exec(query string, args ...interface{}) error {
+	_, err := client.db.Exec(query, args...)
+	return err
+}
+
 func GetSQLClient() *SQLClient {
 	return client
 }

@@ -148,9 +148,7 @@ func HandleGetTask(r *http.Request) utils.HandlerResponse {
 }
 
 func createTask(client *db.SQLClient, task Task, userID utils.UID) error {
-	reader, err := client.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, userID)
-	reader.Close()
-	return err
+	return client.Exec("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, userID)
 }
 
 func parseTask(task Task) error {
@@ -204,9 +202,7 @@ func getTaskCustomer(client *db.SQLClient, taskID utils.UID) (utils.UID, error) 
 }
 
 func setTaskDoer(client *db.SQLClient, taskID utils.UID, doerID utils.UID) error {
-	reader, err := client.Query("UPDATE tasks SET doer_id = $2 WHERE task_id = $1", taskID, doerID)
-	reader.Close()
-	return err
+	return client.Exec("UPDATE tasks SET doer_id = $2 WHERE task_id = $1", taskID, doerID)
 }
 
 func canSetDoer(userID utils.UID, customerID utils.UID) bool {

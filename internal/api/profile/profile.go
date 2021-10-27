@@ -37,9 +37,7 @@ func HandleGetUserProfile(r *http.Request) utils.HandlerResponse {
 }
 
 func setUserProfile(client *db.SQLClient, profile utils.UserData, userID utils.UID) error {
-	reader, err := client.Query("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", userID, profile.Name, profile.IsCustomer)
-	reader.Close()
-	return err
+	return client.Exec("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", userID, profile.Name, profile.IsCustomer)
 }
 
 func parseUserProfile(profile utils.UserData) error {
