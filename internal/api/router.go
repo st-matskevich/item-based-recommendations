@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -10,20 +9,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/replies"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/similarity"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/tasks"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
-	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
+	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
-
-type BaseHandler func(*http.Request) utils.HandlerResponse
-
-type Route struct {
-	Name        string
-	Method      string
-	Pattern     string
-	HandlerFunc BaseHandler
-}
 
 func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -34,19 +23,7 @@ func HandleCORS(r *http.Request) utils.HandlerResponse {
 	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)
 }
 
-func AuthMiddleware(inner BaseHandler) BaseHandler {
-	return BaseHandler(func(r *http.Request) utils.HandlerResponse {
-		uid, err := firebase.GetFirebaseAuth().Verify(r.Header.Get("Authorization"))
-		if err != nil {
-			return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), err)
-		}
-		ctx := context.WithValue(r.Context(), utils.USER_ID_CTX_KEY, uid)
-
-		return inner(r.WithContext(ctx))
-	})
-}
-
-func BaseMiddleware(inner BaseHandler, name string) http.Handler {
+func BaseMiddleware(inner utils.BaseHandler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -81,74 +58,40 @@ func MakeRouter() *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)
 
+	controllers := []utils.Controller{
+		&profile.ProfileController{
+			ProfileRepo: &profile.ProfileSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+		},
+		&tasks.TasksController{
+			TasksRepo: &tasks.TasksSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+		},
+		&replies.RepliesController{
+			RepliesRepo: &replies.RepliesSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			TasksRepo: &tasks.TasksSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+		},
+	}
+
 	//TODO: this should be removed in prod
 	router.Methods("OPTIONS").Handler(BaseMiddleware(HandleCORS, "CORS"))
 
-	for _, route := range routes {
-		handler := BaseMiddleware(route.HandlerFunc, route.Name)
-		router.
-			Methods(route.Method).
-			Path(route.Pattern).
-			Name(route.Name).
-			Handler(handler)
+	for _, controller := range controllers {
+		for _, route := range controller.GetRoutes() {
+			handler := BaseMiddleware(route.Handler, route.Name)
+			router.
+				Methods(route.Method).
+				Path(route.Pattern).
+				Name(route.Name).
+				Handler(handler)
+		}
 	}
 
 	return router
-}
-
-var routes = []Route{
-	{
-		"Get Recommendations",
-		"GET",
-		"/recommendations",
-		AuthMiddleware(similarity.HandleGetRecommendations),
-	},
-	{
-		"Get User Profile",
-		"GET",
-		"/profile",
-		AuthMiddleware(profile.HandleGetUserProfile),
-	},
-	{
-		"Set User Profile",
-		"POST",
-		"/profile",
-		AuthMiddleware(profile.HandleSetUserProfile),
-	},
-	{
-		"Get Tasks Feed",
-		"GET",
-		"/tasks",
-		AuthMiddleware(tasks.HandleGetTasksFeed),
-	},
-	{
-		"Get Task",
-		"GET",
-		"/tasks/{task}",
-		AuthMiddleware(tasks.HandleGetTask),
-	},
-	{
-		"Create Task",
-		"POST",
-		"/tasks",
-		AuthMiddleware(tasks.HandleCreateTask),
-	},
-	{
-		"Get Replies",
-		"GET",
-		"/tasks/{task}/replies",
-		AuthMiddleware(replies.HandleGetReplies),
-	},
-	{
-		"Create Reply",
-		"POST",
-		"/tasks/{task}/replies",
-		AuthMiddleware(replies.HandleCreateReply),
-	},
-	{
-		"Set Task Doer",
-		"POST",
-		"/tasks/{task}/doer",
-		AuthMiddleware(tasks.HandleSetDoer),
-	},
 }
