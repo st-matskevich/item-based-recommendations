@@ -20,6 +20,7 @@ type RepliesRepository interface {
 	GetDoerReply(taskID utils.UID) (*Reply, error)
 	GetUserReply(taskID utils.UID, userID utils.UID) (*Reply, error)
 	CreateReply(taskID utils.UID, reply Reply) error
+	HideReply(replyID utils.UID) error
 }
 
 type RepliesSQLRepository struct {
@@ -119,4 +120,8 @@ func (repo *RepliesSQLRepository) GetUserReply(taskID utils.UID, userID utils.UI
 
 func (repo *RepliesSQLRepository) CreateReply(taskID utils.UID, reply Reply) error {
 	return repo.SQLClient.Exec("INSERT INTO replies(task_id, text, creator_id) VALUES ($1, $2, $3)", taskID, reply.Text, reply.Creator.ID)
+}
+
+func (repo *RepliesSQLRepository) HideReply(replyID utils.UID) error {
+	return repo.SQLClient.Exec("UPDATE replies SET hidden = TRUE WHERE reply_id = $1", replyID)
 }

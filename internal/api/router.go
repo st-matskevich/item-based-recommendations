@@ -17,6 +17,7 @@ import (
 func addCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, DELETE")
 }
 
 func HandleCORS(r *http.Request) utils.HandlerResponse {

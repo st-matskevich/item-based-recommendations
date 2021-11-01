@@ -36,6 +36,12 @@ func (controller *RepliesController) GetRoutes() []utils.Route {
 			Pattern: "/tasks/{task}/replies",
 			Handler: middleware.AuthMiddleware(controller.HandleCreateReply),
 		},
+		{
+			Name:    "Hide Reply",
+			Method:  "DELETE",
+			Pattern: "/tasks/{task}/replies/{reply}",
+			Handler: middleware.AuthMiddleware(controller.HandleHideReply),
+		},
 	}
 }
 
@@ -108,6 +114,36 @@ func (controller *RepliesController) HandleCreateReply(r *http.Request) utils.Ha
 	}
 
 	err = controller.RepliesRepo.CreateReply(taskID, input)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)
+}
+
+func (controller *RepliesController) HandleHideReply(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
+	taskID, err := utils.UIDFromString(mux.Vars(r)["task"])
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	replyID, err := utils.UIDFromString(mux.Vars(r)["reply"])
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	task, err := controller.TasksRepo.GetTask(taskID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	if task.Customer.ID != uid {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), errors.New(utils.INSUFFICIENT_RIGHTS))
+	}
+
+	err = controller.RepliesRepo.HideReply(replyID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
