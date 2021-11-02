@@ -9,7 +9,7 @@ import (
 )
 
 type Reply struct {
-	Id        utils.UID        `json:"id"`
+	ID        utils.UID        `json:"id"`
 	Text      string           `json:"text"`
 	Creator   profile.UserData `json:"creator"`
 	CreatedAt time.Time        `json:"createdAt"`
@@ -46,7 +46,7 @@ func (repo *RepliesSQLRepository) GetReplies(taskID utils.UID) ([]Reply, error) 
 	replies := []Reply{}
 	row := Reply{}
 	for {
-		ok, err := reader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+		ok, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +77,7 @@ func (repo *RepliesSQLRepository) GetDoerReply(taskID utils.UID) (*Reply, error)
 	defer reader.Close()
 
 	row := Reply{}
-	found, err := reader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (repo *RepliesSQLRepository) GetUserReply(taskID utils.UID, userID utils.UI
 	defer reader.Close()
 
 	row := Reply{}
-	found, err := reader.NextRow(&row.Id, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
