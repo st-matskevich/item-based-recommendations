@@ -11,6 +11,7 @@ type Reply struct {
 	ID        utils.UID `json:"id"`
 	Text      string    `json:"text"`
 	Creator   UserData  `json:"creator"`
+	TaskID    utils.UID `json:"taskId"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -29,7 +30,7 @@ type RepliesSQLRepository struct {
 
 func (repo *RepliesSQLRepository) GetReplies(taskID utils.UID) ([]Reply, error) {
 	reader, err := repo.SQLClient.Query(
-		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.created_at
+		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.task_id, replies.created_at
 		FROM tasks JOIN replies 
 		ON tasks.task_id = replies.task_id
 		AND tasks.task_id = $1
@@ -46,7 +47,7 @@ func (repo *RepliesSQLRepository) GetReplies(taskID utils.UID) ([]Reply, error) 
 	replies := []Reply{}
 	row := Reply{}
 	for {
-		ok, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+		ok, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.TaskID, &row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +63,7 @@ func (repo *RepliesSQLRepository) GetReplies(taskID utils.UID) ([]Reply, error) 
 
 func (repo *RepliesSQLRepository) GetDoerReply(taskID utils.UID) (*Reply, error) {
 	reader, err := repo.SQLClient.Query(
-		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.created_at
+		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.task_id, replies.created_at
 		FROM tasks JOIN replies 
 		ON tasks.task_id = replies.task_id
 		AND tasks.task_id = $1
@@ -76,7 +77,7 @@ func (repo *RepliesSQLRepository) GetDoerReply(taskID utils.UID) (*Reply, error)
 	defer reader.Close()
 
 	row := Reply{}
-	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.TaskID, &row.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func (repo *RepliesSQLRepository) GetDoerReply(taskID utils.UID) (*Reply, error)
 
 func (repo *RepliesSQLRepository) GetUserReply(taskID utils.UID, userID utils.UID) (*Reply, error) {
 	reader, err := repo.SQLClient.Query(
-		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.created_at
+		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.task_id, replies.created_at
 		FROM tasks JOIN replies 
 		ON tasks.task_id = replies.task_id
 		AND tasks.task_id = $1
@@ -104,7 +105,7 @@ func (repo *RepliesSQLRepository) GetUserReply(taskID utils.UID, userID utils.UI
 	defer reader.Close()
 
 	row := Reply{}
-	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	found, err := reader.NextRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.TaskID, &row.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func (repo *RepliesSQLRepository) HideReply(replyID utils.UID) error {
 
 func (repo *RepliesSQLRepository) GetReply(replyID utils.UID) (*Reply, error) {
 	reader, err := repo.SQLClient.Query(
-		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.created_at
+		`SELECT replies.reply_id, replies.text, users.user_id, users.name, replies.task_id, replies.created_at
 		FROM replies 
 		JOIN users
 		ON replies.creator_id = users.user_id
@@ -150,7 +151,7 @@ func (repo *RepliesSQLRepository) GetReply(replyID utils.UID) (*Reply, error) {
 	defer reader.Close()
 
 	row := Reply{}
-	err = reader.GetRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.CreatedAt)
+	err = reader.GetRow(&row.ID, &row.Text, &row.Creator.ID, &row.Creator.Name, &row.TaskID, &row.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

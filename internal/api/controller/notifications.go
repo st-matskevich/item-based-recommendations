@@ -14,6 +14,11 @@ type NotificationsController struct {
 	TasksRepo         repository.TasksRepository
 }
 
+type NewReplyNotificationContent struct {
+	Task  repository.Task  `json:"task"`
+	Reply repository.Reply `json:"reply"`
+}
+
 func (controller *NotificationsController) GetRoutes() []utils.Route {
 	return []utils.Route{
 		{
@@ -40,12 +45,22 @@ func (controller *NotificationsController) HandleGetNotifications(r *http.Reques
 			if err != nil {
 				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 			}
-			notifications[idx].Content = reply
+
+			task, err := controller.TasksRepo.GetTask(reply.TaskID)
+			if err != nil {
+				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+			}
+
+			notifications[idx].Content = NewReplyNotificationContent{
+				Task:  *task,
+				Reply: *reply,
+			}
 		case repository.TASK_CLOSE_NOTIFICATION:
 			task, err := controller.TasksRepo.GetTask(val.TriggerID)
 			if err != nil {
 				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 			}
+
 			notifications[idx].Content = task
 		}
 	}
