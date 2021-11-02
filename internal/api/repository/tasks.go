@@ -1,28 +1,27 @@
-package tasks
+package repository
 
 import (
 	"time"
 
-	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
 
 const (
-	NOT_ASSIGNED = "NOT_ASSIGNED"
-	CUSTOMER     = "CUSTOMER"
-	DOER         = "DOER"
+	NOT_ASSIGNED_TASKS = "NOT_ASSIGNED"
+	CUSTOMER_TASKS     = "CUSTOMER"
+	DOER_TASKS         = "DOER"
 )
 
 type Task struct {
-	ID           utils.UID        `json:"id"`
-	Name         string           `json:"name"`
-	Description  string           `json:"description,omitempty"`
-	Customer     profile.UserData `json:"customer"`
-	Owns         bool             `json:"owns"`
-	Closed       bool             `json:"closed"`
-	RepliesCount int32            `json:"repliesCount"`
-	CreatedAt    time.Time        `json:"createdAt"`
+	ID           utils.UID `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description,omitempty"`
+	Customer     UserData  `json:"customer"`
+	Owns         bool      `json:"owns"`
+	Closed       bool      `json:"closed"`
+	RepliesCount int32     `json:"repliesCount"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 type TasksRepository interface {
@@ -38,7 +37,7 @@ type TasksSQLRepository struct {
 
 func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UID) (db.ResponseReader, error) {
 	switch scope {
-	case CUSTOMER:
+	case CUSTOMER_TASKS:
 		return repo.SQLClient.Query(
 			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
 			FROM tasks 
@@ -50,7 +49,7 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 			GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 			ORDER BY tasks.task_id`, userID,
 		)
-	case DOER:
+	case DOER_TASKS:
 		return repo.SQLClient.Query(
 			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
 			FROM tasks 

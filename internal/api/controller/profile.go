@@ -1,4 +1,4 @@
-package profile
+package controller
 
 import (
 	"encoding/json"
@@ -6,11 +6,12 @@ import (
 	"net/http"
 
 	"github.com/st-matskevich/item-based-recommendations/internal/api/middleware"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/repository"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
 type ProfileController struct {
-	ProfileRepo ProfileRepository
+	ProfileRepo repository.ProfileRepository
 }
 
 func (controller *ProfileController) GetRoutes() []utils.Route {
@@ -30,7 +31,7 @@ func (controller *ProfileController) GetRoutes() []utils.Route {
 	}
 }
 
-func validateProfile(profile UserData) error {
+func validateProfile(profile repository.UserData) error {
 	if profile.Name == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -56,7 +57,7 @@ func (controller *ProfileController) HandleGetUserProfile(r *http.Request) utils
 func (controller *ProfileController) HandleSetUserProfile(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	input := UserData{}
+	input := repository.UserData{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)

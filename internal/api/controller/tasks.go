@@ -1,4 +1,4 @@
-package tasks
+package controller
 
 import (
 	"encoding/json"
@@ -7,12 +7,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/middleware"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/repository"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
 type TasksController struct {
-	TasksRepo TasksRepository
+	TasksRepo         repository.TasksRepository
+	NotificationsRepo repository.NotificationsRepository
 }
 
 func (controller *TasksController) GetRoutes() []utils.Route {
@@ -79,7 +80,7 @@ func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerR
 	return utils.MakeHandlerResponse(http.StatusOK, task, nil)
 }
 
-func validateTask(task Task) error {
+func validateTask(task repository.Task) error {
 	if task.Name == "" || task.Description == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -98,7 +99,7 @@ func validateTask(task Task) error {
 func (controller *TasksController) HandleCreateTask(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	input := Task{}
+	input := repository.Task{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
@@ -121,7 +122,7 @@ func (controller *TasksController) HandleCreateTask(r *http.Request) utils.Handl
 func (controller *TasksController) HandleCloseTask(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	doer := profile.UserData{}
+	doer := repository.UserData{}
 	err := json.NewDecoder(r.Body).Decode(&doer)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
@@ -142,6 +143,11 @@ func (controller *TasksController) HandleCloseTask(r *http.Request) utils.Handle
 	}
 
 	err = controller.TasksRepo.CloseTask(taskID, doer.ID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	err = controller.NotificationsRepo.CreateNotification(doer.ID, repository.TASK_CLOSE_NOTIFICATION, taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}

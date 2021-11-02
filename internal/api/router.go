@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/profile"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/replies"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/tasks"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/controller"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/repository"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
@@ -60,21 +59,38 @@ func MakeRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	controllers := []utils.Controller{
-		&profile.ProfileController{
-			ProfileRepo: &profile.ProfileSQLRepository{
+		&controller.ProfileController{
+			ProfileRepo: &repository.ProfileSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
 		},
-		&tasks.TasksController{
-			TasksRepo: &tasks.TasksSQLRepository{
+		&controller.TasksController{
+			TasksRepo: &repository.TasksSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			NotificationsRepo: &repository.NotificationsSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
 		},
-		&replies.RepliesController{
-			RepliesRepo: &replies.RepliesSQLRepository{
+		&controller.RepliesController{
+			RepliesRepo: &repository.RepliesSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
-			TasksRepo: &tasks.TasksSQLRepository{
+			TasksRepo: &repository.TasksSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			NotificationsRepo: &repository.NotificationsSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+		},
+		&controller.NotificationsController{
+			NotificationsRepo: &repository.NotificationsSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			RepliesRepo: &repository.RepliesSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			TasksRepo: &repository.TasksSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
 		},

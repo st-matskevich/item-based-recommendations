@@ -1,4 +1,4 @@
-package profile
+package repository
 
 import (
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"

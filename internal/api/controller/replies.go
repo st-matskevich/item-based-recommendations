@@ -1,4 +1,4 @@
-package replies
+package controller
 
 import (
 	"encoding/json"
@@ -7,19 +7,20 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/middleware"
-	"github.com/st-matskevich/item-based-recommendations/internal/api/tasks"
+	"github.com/st-matskevich/item-based-recommendations/internal/api/repository"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
 type TaskReplies struct {
-	User *Reply  `json:"user"`
-	Doer *Reply  `json:"doer"`
-	All  []Reply `json:"all"`
+	User *repository.Reply  `json:"user"`
+	Doer *repository.Reply  `json:"doer"`
+	All  []repository.Reply `json:"all"`
 }
 
 type RepliesController struct {
-	RepliesRepo RepliesRepository
-	TasksRepo   tasks.TasksRepository
+	RepliesRepo       repository.RepliesRepository
+	TasksRepo         repository.TasksRepository
+	NotificationsRepo repository.NotificationsRepository
 }
 
 func (controller *RepliesController) GetRoutes() []utils.Route {
@@ -45,7 +46,7 @@ func (controller *RepliesController) GetRoutes() []utils.Route {
 	}
 }
 
-func validateReply(reply Reply) error {
+func validateReply(reply repository.Reply) error {
 	if reply.Text == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -96,7 +97,7 @@ func (controller *RepliesController) HandleGetReplies(r *http.Request) utils.Han
 func (controller *RepliesController) HandleCreateReply(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	input := Reply{}
+	input := repository.Reply{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
@@ -113,7 +114,17 @@ func (controller *RepliesController) HandleCreateReply(r *http.Request) utils.Ha
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	err = controller.RepliesRepo.CreateReply(taskID, input)
+	replyID, err := controller.RepliesRepo.CreateReply(taskID, input)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	task, err := controller.TasksRepo.GetTask(taskID)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	err = controller.NotificationsRepo.CreateNotification(task.Customer.ID, repository.NEW_REPLY_NOTIFICATION, replyID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
