@@ -19,15 +19,7 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 CREATE TABLE users(
-    user_id BIGINT NOT NULL DEFAULT id_generator(), 
+    user_id BIGINT PRIMARY KEY NOT NULL DEFAULT id_generator(), 
     firebase_uid VARCHAR(32) NOT NULL UNIQUE,
     name VARCHAR(32) NOT NULL DEFAULT '',
     is_customer BOOLEAN NOT NULL DEFAULT false);
-
-CREATE TABLE task_tag(
-    task_id BIGINT NOT NULL, 
-    tag_id BIGINT NOT NULL);
-
-CREATE TABLE likes(
-    user_id BIGINT NOT NULL, 
-    task_id BIGINT NOT NULL);
