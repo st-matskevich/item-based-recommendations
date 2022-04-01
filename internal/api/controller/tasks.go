@@ -85,11 +85,11 @@ func validateTask(task repository.Task) error {
 		return errors.New(utils.INVALID_INPUT)
 	}
 
-	if len([]rune(task.Name)) > 64 {
+	if len([]rune(task.Name)) > 128 {
 		return errors.New(utils.INVALID_INPUT)
 	}
 
-	if len([]rune(task.Description)) > 512 {
+	if len([]rune(task.Description)) > 2048 {
 		return errors.New(utils.INVALID_INPUT)
 	}
 
