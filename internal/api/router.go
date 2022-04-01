@@ -68,7 +68,13 @@ func MakeRouter() *mux.Router {
 			TasksRepo: &repository.TasksSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
+			RepliesRepo: &repository.RepliesSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
 			NotificationsRepo: &repository.NotificationsSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+			TagsRepo: &repository.TagsSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
 		},
@@ -91,6 +97,11 @@ func MakeRouter() *mux.Router {
 				SQLClient: db.GetSQLClient(),
 			},
 			TasksRepo: &repository.TasksSQLRepository{
+				SQLClient: db.GetSQLClient(),
+			},
+		},
+		&controller.TagsController{
+			TagsRepo: &repository.TagsSQLRepository{
 				SQLClient: db.GetSQLClient(),
 			},
 		},

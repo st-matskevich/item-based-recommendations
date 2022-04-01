@@ -14,14 +14,12 @@ const (
 )
 
 type Task struct {
-	ID           utils.UID `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description,omitempty"`
-	Customer     UserData  `json:"customer"`
-	Owns         bool      `json:"owns"`
-	Closed       bool      `json:"closed"`
-	RepliesCount int32     `json:"repliesCount"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID          utils.UID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	Customer    UserData  `json:"customer"`
+	Closed      bool      `json:"closed"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type TasksRepository interface {
@@ -39,38 +37,29 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 	switch scope {
 	case CUSTOMER_TASKS:
 		return repo.SQLClient.Query(
-			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
+			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
 			FROM tasks 
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.customer_id = $1
-			LEFT JOIN replies
-			ON tasks.task_id = replies.task_id
-			GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 			ORDER BY tasks.task_id DESC`, userID,
 		)
 	case DOER_TASKS:
 		return repo.SQLClient.Query(
-			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
+			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
 			FROM tasks 
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.doer_id = $1
-			LEFT JOIN replies
-			ON tasks.task_id = replies.task_id
-			GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 			ORDER BY tasks.task_id DESC`, userID,
 		)
 	}
 	return repo.SQLClient.Query(
-		`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at
+		`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
 		FROM tasks 
 		JOIN users 
 		ON tasks.customer_id = users.user_id
 		AND tasks.doer_id IS NULL
-		LEFT JOIN replies
-		ON tasks.task_id = replies.task_id
-		GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
 		ORDER BY tasks.task_id DESC`,
 	)
 }
@@ -86,7 +75,7 @@ func (repo *TasksSQLRepository) GetTasksFeed(scope string, userID utils.UID) ([]
 	row := Task{}
 
 	for {
-		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.RepliesCount, &row.CreatedAt)
+		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -102,15 +91,11 @@ func (repo *TasksSQLRepository) GetTasksFeed(scope string, userID utils.UID) ([]
 
 func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	reader, err := repo.SQLClient.Query(
-		`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL, users.user_id, users.name, COUNT(replies.task_id), tasks.created_at  
+		`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at  
 		FROM tasks 
 		JOIN users 
 		ON tasks.customer_id = users.user_id
-		AND tasks.task_id = $1
-		LEFT JOIN replies
-		ON tasks.task_id = replies.task_id
-		GROUP BY tasks.task_id, tasks.name, tasks.description, tasks.doer_id, users.user_id, users.name, tasks.created_at
-		ORDER BY tasks.task_id`, taskID,
+		AND tasks.task_id = $1`, taskID,
 	)
 	if err != nil {
 		return nil, err
@@ -118,7 +103,7 @@ func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	defer reader.Close()
 
 	result := Task{}
-	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.RepliesCount, &result.CreatedAt)
+	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

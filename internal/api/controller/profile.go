@@ -65,7 +65,7 @@ func (controller *ProfileController) HandleSetUserProfile(r *http.Request) utils
 
 	err = validateProfile(input)
 	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.BAD_INPUT), err)
 	}
 
 	err = controller.ProfileRepo.SetProfile(uid, input)

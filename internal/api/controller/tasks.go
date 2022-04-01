@@ -13,7 +13,16 @@ import (
 
 type TasksController struct {
 	TasksRepo         repository.TasksRepository
+	TagsRepo          repository.TagsRepository
+	RepliesRepo       repository.RepliesRepository
 	NotificationsRepo repository.NotificationsRepository
+}
+
+type TaskWrapper struct {
+	*repository.Task
+	Tags         []repository.Tag `json:"tags"`
+	Owns         bool             `json:"owns"`
+	RepliesCount int32            `json:"repliesCount"`
 }
 
 func (controller *TasksController) GetRoutes() []utils.Route {
@@ -45,6 +54,25 @@ func (controller *TasksController) GetRoutes() []utils.Route {
 	}
 }
 
+func (controller *TasksController) buildTaskWrapper(uid utils.UID, task *repository.Task) (*TaskWrapper, error) {
+	var err error
+	wrapper := TaskWrapper{}
+	wrapper.Task = task
+	wrapper.Owns = uid == wrapper.Customer.ID
+
+	wrapper.RepliesCount, err = controller.RepliesRepo.GetRepliesCount(wrapper.Task.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper.Tags, err = controller.TagsRepo.GetTaskTags(wrapper.Task.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &wrapper, nil
+}
+
 func (controller *TasksController) HandleGetTasksFeed(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
@@ -55,11 +83,16 @@ func (controller *TasksController) HandleGetTasksFeed(r *http.Request) utils.Han
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	for idx, val := range tasks {
-		tasks[idx].Owns = uid == val.Customer.ID
+	result := []TaskWrapper{}
+	for idx := range tasks {
+		wrapper, err := controller.buildTaskWrapper(uid, &tasks[idx])
+		if err != nil {
+			return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+		}
+		result = append(result, *wrapper)
 	}
 
-	return utils.MakeHandlerResponse(http.StatusOK, tasks, nil)
+	return utils.MakeHandlerResponse(http.StatusOK, result, nil)
 }
 
 func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerResponse {
@@ -75,9 +108,12 @@ func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerR
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	task.Owns = uid == task.Customer.ID
+	wrapper, err := controller.buildTaskWrapper(uid, task)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
 
-	return utils.MakeHandlerResponse(http.StatusOK, task, nil)
+	return utils.MakeHandlerResponse(http.StatusOK, wrapper, nil)
 }
 
 func validateTask(task repository.Task) error {
@@ -108,7 +144,7 @@ func (controller *TasksController) HandleCreateTask(r *http.Request) utils.Handl
 
 	err = validateTask(input)
 	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.BAD_INPUT), err)
 	}
 
 	err = controller.TasksRepo.CreateTask(input)

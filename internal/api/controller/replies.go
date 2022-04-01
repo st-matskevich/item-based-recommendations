@@ -106,7 +106,7 @@ func (controller *RepliesController) HandleCreateReply(r *http.Request) utils.Ha
 
 	err = validateReply(input)
 	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.BAD_INPUT), err)
 	}
 
 	taskID, err := utils.UIDFromString(mux.Vars(r)["task"])

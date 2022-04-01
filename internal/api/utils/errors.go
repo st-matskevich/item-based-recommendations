@@ -5,6 +5,7 @@ const (
 	AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR"
 	SQL_ERROR           = "SQL_ERROR"
 	DECODER_ERROR       = "DECODER_ERROR"
+	BAD_INPUT           = "BAD_INPUT"
 )
 
 //internal errors
