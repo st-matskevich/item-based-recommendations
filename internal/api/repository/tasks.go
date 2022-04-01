@@ -25,7 +25,7 @@ type Task struct {
 type TasksRepository interface {
 	GetTasksFeed(scope string, userID utils.UID) ([]Task, error)
 	GetTask(taskID utils.UID) (*Task, error)
-	CreateTask(task Task) error
+	CreateTask(task Task) (utils.UID, error)
 	CloseTask(taskID utils.UID, doerID utils.UID) error
 }
 
@@ -111,8 +111,20 @@ func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	return &result, nil
 }
 
-func (repo *TasksSQLRepository) CreateTask(task Task) error {
-	return repo.SQLClient.Exec("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3)", task.Name, task.Description, task.Customer.ID)
+func (repo *TasksSQLRepository) CreateTask(task Task) (utils.UID, error) {
+	reader, err := repo.SQLClient.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3) RETURNING task_id", task.Name, task.Description, task.Customer.ID)
+	if err != nil {
+		return 0, err
+	}
+	defer reader.Close()
+
+	row := utils.UID(0)
+	err = reader.GetRow(&row)
+	if err != nil {
+		return 0, err
+	}
+
+	return row, nil
 }
 
 func (repo *TasksSQLRepository) CloseTask(taskID utils.UID, doerID utils.UID) error {

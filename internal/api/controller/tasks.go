@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/middleware"
@@ -60,12 +61,12 @@ func (controller *TasksController) buildTaskWrapper(uid utils.UID, task *reposit
 	wrapper.Task = task
 	wrapper.Owns = uid == wrapper.Customer.ID
 
-	wrapper.RepliesCount, err = controller.RepliesRepo.GetRepliesCount(wrapper.Task.ID)
+	wrapper.RepliesCount, err = controller.RepliesRepo.GetRepliesCount(wrapper.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	wrapper.Tags, err = controller.TagsRepo.GetTaskTags(wrapper.Task.ID)
+	wrapper.Tags, err = controller.TagsRepo.GetTaskTags(wrapper.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +117,7 @@ func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerR
 	return utils.MakeHandlerResponse(http.StatusOK, wrapper, nil)
 }
 
-func validateTask(task repository.Task) error {
+func validateTask(task *TaskWrapper) error {
 	if task.Name == "" || task.Description == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -129,27 +130,56 @@ func validateTask(task repository.Task) error {
 		return errors.New(utils.INVALID_INPUT)
 	}
 
+	if len(task.Tags) > 5 {
+		return errors.New(utils.INVALID_INPUT)
+	}
+
+	if len(task.Tags) < 1 {
+		return errors.New(utils.INVALID_INPUT)
+	}
+
+	for _, tag := range task.Tags {
+		if len([]rune(tag.Text)) > 32 {
+			return errors.New(utils.INVALID_INPUT)
+		}
+	}
+
 	return nil
 }
 
 func (controller *TasksController) HandleCreateTask(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	input := repository.Task{}
+	input := TaskWrapper{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 	input.Customer.ID = uid
 
-	err = validateTask(input)
+	err = validateTask(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.BAD_INPUT), err)
 	}
 
-	err = controller.TasksRepo.CreateTask(input)
+	taskID, err := controller.TasksRepo.CreateTask(*input.Task)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	for _, tag := range input.Tags {
+		if tag.ID == 0 {
+			tag.Text = strings.ToLower(tag.Text)
+			tag.ID, err = controller.TagsRepo.CreateTag(tag.Text)
+			if err != nil {
+				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+			}
+		}
+
+		err = controller.TagsRepo.AddTagToTask(taskID, tag.ID)
+		if err != nil {
+			return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+		}
 	}
 
 	return utils.MakeHandlerResponse(http.StatusOK, struct{}{}, nil)

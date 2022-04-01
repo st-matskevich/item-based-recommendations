@@ -13,6 +13,8 @@ type Tag struct {
 type TagsRepository interface {
 	GetTaskTags(taskID utils.UID) ([]Tag, error)
 	SearchTags(request string) ([]Tag, error)
+	CreateTag(tag string) (utils.UID, error)
+	AddTagToTask(taskID utils.UID, tagID utils.UID) error
 }
 
 type TagsSQLRepository struct {
@@ -74,4 +76,24 @@ func (repo *TagsSQLRepository) SearchTags(request string) ([]Tag, error) {
 	}
 
 	return tags, nil
+}
+
+func (repo *TagsSQLRepository) CreateTag(tag string) (utils.UID, error) {
+	reader, err := repo.SQLClient.Query("INSERT INTO tags(text) VALUES ($1) RETURNING tag_id", tag)
+	if err != nil {
+		return 0, err
+	}
+	defer reader.Close()
+
+	row := utils.UID(0)
+	err = reader.GetRow(&row)
+	if err != nil {
+		return 0, err
+	}
+
+	return row, nil
+}
+
+func (repo *TagsSQLRepository) AddTagToTask(taskID utils.UID, tagID utils.UID) error {
+	return repo.SQLClient.Exec("INSERT INTO task_tag(task_id, tag_id) VALUES ($1, $2)", taskID, tagID)
 }
