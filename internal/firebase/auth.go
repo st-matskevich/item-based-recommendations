@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"firebase.google.com/go/auth"
-	"github.com/lib/pq"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
@@ -22,18 +21,21 @@ var authClient *FirebaseAuth
 
 func mapFirebaseUIDToUserID(UID string) (utils.UID, error) {
 	var result int64
-	reader, err := db.GetSQLClient().Query("INSERT INTO users (firebase_uid) VALUES ($1) RETURNING user_id", UID)
-	if err != nil {
-		reader.Close()
-		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code.Name() == "unique_violation" {
-			reader, err = db.GetSQLClient().Query("SELECT user_id FROM users WHERE firebase_uid = $1", UID)
 
-			if err != nil {
-				return utils.UID(result), err
-			}
-		} else {
-			return utils.UID(result), err
-		}
+	reader, err := db.GetSQLClient().Query(
+		`WITH new_user AS (
+			INSERT INTO users (firebase_uid) 
+			VALUES ($1)
+			ON CONFLICT (firebase_uid) DO NOTHING
+			RETURNING user_id
+		) SELECT COALESCE(
+			(SELECT user_id FROM new_user),
+			(SELECT user_id FROM users WHERE firebase_uid = $1)
+		)`, UID,
+	)
+
+	if err != nil {
+		return utils.UID(result), err
 	}
 
 	err = reader.GetRow(&result)
