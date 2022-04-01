@@ -37,7 +37,7 @@ func (repo *RepliesSQLRepository) GetReplies(taskID utils.UID) ([]Reply, error) 
 		AND replies.hidden = false
 		JOIN users
 		ON replies.creator_id = users.user_id
-		ORDER BY replies.reply_id`, taskID,
+		ORDER BY replies.reply_id DESC`, taskID,
 	)
 	if err != nil {
 		return nil, err

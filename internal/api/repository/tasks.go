@@ -47,7 +47,7 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 			LEFT JOIN replies
 			ON tasks.task_id = replies.task_id
 			GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
-			ORDER BY tasks.task_id`, userID,
+			ORDER BY tasks.task_id DESC`, userID,
 		)
 	case DOER_TASKS:
 		return repo.SQLClient.Query(
@@ -59,7 +59,7 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 			LEFT JOIN replies
 			ON tasks.task_id = replies.task_id
 			GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
-			ORDER BY tasks.task_id`, userID,
+			ORDER BY tasks.task_id DESC`, userID,
 		)
 	}
 	return repo.SQLClient.Query(
@@ -71,7 +71,7 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 		LEFT JOIN replies
 		ON tasks.task_id = replies.task_id
 		GROUP BY tasks.task_id, tasks.name, tasks.doer_id, users.user_id, users.name, tasks.created_at
-		ORDER BY tasks.task_id`,
+		ORDER BY tasks.task_id DESC`,
 	)
 }
 

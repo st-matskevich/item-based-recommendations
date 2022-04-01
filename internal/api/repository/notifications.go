@@ -32,7 +32,8 @@ type NotificationsSQLRepository struct {
 func (repo *NotificationsSQLRepository) GetNotifications(userID utils.UID) ([]Notification, error) {
 	reader, err := repo.SQLClient.Query(
 		`SELECT notification_id, trigger_id, type, created_at 
-		FROM notifications WHERE user_id = $1`, userID,
+		FROM notifications WHERE user_id = $1
+		ORDER BY notification_id DESC`, userID,
 	)
 	if err != nil {
 		return nil, err
