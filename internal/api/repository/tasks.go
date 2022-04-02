@@ -23,7 +23,7 @@ type Task struct {
 }
 
 type TasksRepository interface {
-	GetTasksFeed(scope string, userID utils.UID) ([]Task, error)
+	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
 	GetTask(taskID utils.UID) (*Task, error)
 	CreateTask(task Task) (utils.UID, error)
 	CloseTask(taskID utils.UID, doerID utils.UID) error
@@ -33,7 +33,7 @@ type TasksSQLRepository struct {
 	SQLClient *db.SQLClient
 }
 
-func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UID) (db.ResponseReader, error) {
+func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string, userID utils.UID) (db.ResponseReader, error) {
 	switch scope {
 	case CUSTOMER_TASKS:
 		return repo.SQLClient.Query(
@@ -42,7 +42,8 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.customer_id = $1
-			ORDER BY tasks.task_id DESC`, userID,
+			AND tasks.name LIKE '%' || $2 || '%'
+			ORDER BY tasks.task_id DESC`, userID, request,
 		)
 	case DOER_TASKS:
 		return repo.SQLClient.Query(
@@ -51,7 +52,8 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.doer_id = $1
-			ORDER BY tasks.task_id DESC`, userID,
+			AND tasks.name LIKE '%' || $2 || '%'
+			ORDER BY tasks.task_id DESC`, userID, request,
 		)
 	}
 	return repo.SQLClient.Query(
@@ -60,12 +62,13 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, userID utils.UI
 		JOIN users 
 		ON tasks.customer_id = users.user_id
 		AND tasks.doer_id IS NULL
-		ORDER BY tasks.task_id DESC`,
+		AND tasks.name LIKE '%' || $1 || '%'
+		ORDER BY tasks.task_id DESC`, request,
 	)
 }
 
-func (repo *TasksSQLRepository) GetTasksFeed(scope string, userID utils.UID) ([]Task, error) {
-	reader, err := repo.getTasksFeedReader(scope, userID)
+func (repo *TasksSQLRepository) GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error) {
+	reader, err := repo.getTasksFeedReader(scope, request, userID)
 	if err != nil {
 		return nil, err
 	}

@@ -78,8 +78,9 @@ func (controller *TasksController) HandleGetTasksFeed(r *http.Request) utils.Han
 	uid := utils.GetUserID(r.Context())
 
 	scope := r.FormValue("scope")
+	query := r.FormValue("query")
 
-	tasks, err := controller.TasksRepo.GetTasksFeed(scope, uid)
+	tasks, err := controller.TasksRepo.GetTasksFeed(scope, query, uid)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}

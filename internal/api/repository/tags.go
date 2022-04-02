@@ -54,7 +54,7 @@ func (repo *TagsSQLRepository) SearchTags(request string) ([]Tag, error) {
 	reader, err := repo.SQLClient.Query(
 		`SELECT tags.tag_id, tags.text
 		FROM tags 
-		WHERE tags.text LIKE CONCAT($1::text, '%') LIMIT 10`, request,
+		WHERE tags.text LIKE $1 || '%' LIMIT 10`, request,
 	)
 	if err != nil {
 		return nil, err
