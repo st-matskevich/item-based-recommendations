@@ -2,7 +2,6 @@ module github.com/st-matskevich/item-based-recommendations
 
 // +heroku goVersion go1.17
 // +heroku install .
-// +heroku install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 go 1.17
 
 require (
