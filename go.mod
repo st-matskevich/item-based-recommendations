@@ -1,5 +1,6 @@
 module github.com/st-matskevich/item-based-recommendations
 
+// +heroku goVersion go1.17
 go 1.17
 
 require (
