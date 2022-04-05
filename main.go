@@ -11,11 +11,10 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/firebase"
 )
 
-const SERVER_ADDR = ":10000"
-
 func startRouter() {
 	router := api.MakeRouter()
-
+	port := os.Getenv("PORT")
+	SERVER_ADDR := ":" + port
 	log.Printf("Listening on %s", SERVER_ADDR)
 	log.Fatal(http.ListenAndServe(SERVER_ADDR, router))
 }
@@ -25,7 +24,7 @@ func init() {
 		log.Println("No .env file found")
 	}
 
-	if err := db.OpenDB(os.Getenv("SQL_CONNECTION_STRING")); err != nil {
+	if err := db.OpenDB(os.Getenv("DATABASE_URL")); err != nil {
 		log.Fatalf("SQL error: %v", err)
 	}
 

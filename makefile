@@ -1,13 +1,13 @@
 include .env
 
 migrate-up:
-	migrate -source file://migrations -database $(SQL_CONNECTION_STRING) up
+	migrate -path migrations -database $(DATABASE_URL) up
 
 migrate-down:
-	migrate -source file://migrations -database $(SQL_CONNECTION_STRING) down
+	migrate -path migrations -database $(DATABASE_URL) down
 
 migrate-drop:
-	migrate -source file://migrations -database $(SQL_CONNECTION_STRING) drop
+	migrate -path migrations -database $(DATABASE_URL) drop
 
 migrate-create:
 	migrate create -ext sql -dir migrations -seq $(name)
