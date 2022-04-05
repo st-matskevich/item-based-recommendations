@@ -1,2 +1,2 @@
-release: migrate -path migrations -database $DATABASE_URL up
+release: chmod u+x migrate.sh && ./migrate.sh
 web: bin/item-based-recommendations
