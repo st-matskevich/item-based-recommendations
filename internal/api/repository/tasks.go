@@ -11,6 +11,7 @@ const (
 	NOT_ASSIGNED_TASKS = "NOT_ASSIGNED"
 	CUSTOMER_TASKS     = "CUSTOMER"
 	DOER_TASKS         = "DOER"
+	LIKED              = "LIKED"
 )
 
 type Task struct {
@@ -54,6 +55,19 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string,
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.doer_id = $1
+			AND tasks.name LIKE '%' || $2 || '%'
+			ORDER BY tasks.task_id DESC`, userID, request,
+		)
+	case LIKED:
+		return repo.SQLClient.Query(
+			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
+			FROM tasks 
+			JOIN users 
+			ON tasks.customer_id = users.user_id
+			JOIN likes
+			ON tasks.task_id = likes.task_id
+			AND likes.user_id = $1
+			AND likes.active = true
 			AND tasks.name LIKE '%' || $2 || '%'
 			ORDER BY tasks.task_id DESC`, userID, request,
 		)
