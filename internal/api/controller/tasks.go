@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -23,6 +24,7 @@ type TaskWrapper struct {
 	*repository.Task
 	Tags         []repository.Tag `json:"tags"`
 	Owns         bool             `json:"owns"`
+	Liked        bool             `json:"liked"`
 	RepliesCount int32            `json:"repliesCount"`
 }
 
@@ -39,6 +41,12 @@ func (controller *TasksController) GetRoutes() []utils.Route {
 			Method:  "GET",
 			Pattern: "/tasks/{task}",
 			Handler: middleware.AuthMiddleware(controller.HandleGetTask),
+		},
+		{
+			Name:    "Like Task",
+			Method:  "POST",
+			Pattern: "/tasks/{task}/like",
+			Handler: middleware.AuthMiddleware(controller.LikeTask),
 		},
 		{
 			Name:    "Create Task",
@@ -67,6 +75,11 @@ func (controller *TasksController) buildTaskWrapper(uid utils.UID, task *reposit
 	}
 
 	wrapper.Tags, err = controller.TagsRepo.GetTaskTags(wrapper.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper.Liked, err = controller.TasksRepo.IsTaskLiked(uid, wrapper.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +129,27 @@ func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerR
 	}
 
 	return utils.MakeHandlerResponse(http.StatusOK, wrapper, nil)
+}
+
+func (controller *TasksController) LikeTask(r *http.Request) utils.HandlerResponse {
+	uid := utils.GetUserID(r.Context())
+
+	taskID, err := utils.UIDFromString(mux.Vars(r)["task"])
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	likes, err := strconv.ParseBool(r.FormValue("value"))
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
+	}
+
+	err = controller.TasksRepo.SetTaskLike(uid, taskID, likes)
+	if err != nil {
+		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.SQL_ERROR), err)
+	}
+
+	return utils.MakeHandlerResponse(http.StatusOK, likes, nil)
 }
 
 func validateTask(task *TaskWrapper) error {

@@ -25,6 +25,8 @@ type Task struct {
 type TasksRepository interface {
 	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
 	GetTask(taskID utils.UID) (*Task, error)
+	IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error)
+	SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error
 	CreateTask(task Task) (utils.UID, error)
 	CloseTask(taskID utils.UID, doerID utils.UID) error
 }
@@ -112,6 +114,34 @@ func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	}
 
 	return &result, nil
+}
+
+func (repo *TasksSQLRepository) IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error) {
+	reader, err := repo.SQLClient.Query(
+		`SELECT likes.active 
+		FROM likes 
+		WHERE likes.task_id = $1
+		AND likes.user_id = $2`, taskID, userID,
+	)
+	if err != nil {
+		return false, err
+	}
+	defer reader.Close()
+
+	active := false
+	found, err := reader.NextRow(&active)
+	if err != nil {
+		return false, err
+	}
+
+	return found && active, nil
+}
+
+func (repo *TasksSQLRepository) SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error {
+	return repo.SQLClient.Exec(
+		`INSERT INTO likes(user_id, task_id, active) VALUES ($1, $2, $3)
+		ON CONFLICT ON CONSTRAINT likes_user_task DO UPDATE SET active = $3`, userID, taskID, value,
+	)
 }
 
 func (repo *TasksSQLRepository) CreateTask(task Task) (utils.UID, error) {
