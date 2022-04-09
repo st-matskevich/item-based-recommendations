@@ -28,7 +28,7 @@ func getUserProfileReader(client *db.SQLClient, userID utils.UID) (db.ResponseRe
 						FROM likes 
 						JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
-						AND likes.user_id = $1`, userID)
+						AND likes.user_id = $1 AND likes.active = true`, userID)
 }
 
 func getTasksTagsReader(client *db.SQLClient, userID utils.UID) (db.ResponseReader, error) {
@@ -36,7 +36,7 @@ func getTasksTagsReader(client *db.SQLClient, userID utils.UID) (db.ResponseRead
 						FROM likes 
 						RIGHT JOIN task_tag 
 						ON likes.task_id = task_tag.task_id 
-						AND likes.user_id = $1 
+						AND likes.user_id = $1 AND likes.active = true 
 						WHERE likes.user_id IS NULL`, userID)
 }
 
@@ -48,17 +48,15 @@ func normalizeVector(vector map[utils.UID]float32) {
 	magnitude = float32(math.Sqrt(float64(magnitude)))
 
 	for id, val := range vector {
-		val /= magnitude
-		vector[id] = val
+		vector[id] = val / magnitude
 	}
 }
 
 func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 	result := map[utils.UID]float32{}
-
 	uniqueTasks := map[utils.UID]struct{}{}
-	row := TaskTagLink{}
 
+	row := TaskTagLink{}
 	for {
 		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
 		if err != nil {
@@ -68,12 +66,7 @@ func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 			break
 		}
 
-		//TODO: can initial value be not 0? if 0 is guranteed, if statement can be removed
-		if _, contains := result[row.TagID]; !contains {
-			result[row.TagID] = 1
-		} else {
-			result[row.TagID] += 1
-		}
+		result[row.TagID] += 1
 		uniqueTasks[row.TaskID] = struct{}{}
 	}
 
@@ -88,6 +81,8 @@ func readUserProfile(reader db.ResponseReader) (map[utils.UID]float32, error) {
 
 func readTasksTags(reader db.ResponseReader) (map[utils.UID]map[utils.UID]float32, error) {
 	result := map[utils.UID]map[utils.UID]float32{}
+	uniqueTasks := map[utils.UID]struct{}{}
+	uniqueTags := map[utils.UID]float32{}
 
 	row := TaskTagLink{}
 	for {
@@ -103,17 +98,23 @@ func readTasksTags(reader db.ResponseReader) (map[utils.UID]map[utils.UID]float3
 			result[row.TaskID] = map[utils.UID]float32{}
 		}
 
-		result[row.TaskID][row.TagID] = 1
+		result[row.TaskID][row.TagID] = 0
+		uniqueTags[row.TagID] += 1
+		uniqueTasks[row.TaskID] = struct{}{}
 	}
 
-	for taskID := range result {
+	for taskID, tagsMap := range result {
+		for tagID := range tagsMap {
+			result[taskID][tagID] = uniqueTags[tagID] / float32(len(uniqueTasks))
+		}
+
 		normalizeVector(result[taskID])
 	}
 
 	return result, nil
 }
 
-func getSimilarTasks(readers ProfilesReaders, topSize int) ([]TaskSimilarity, error) {
+func getSimilarTasks(readers ProfilesReaders, threshold float32) ([]TaskSimilarity, error) {
 	userProfile, err := readUserProfile(readers.UserProfileReader)
 	if err != nil {
 		return nil, err
@@ -136,22 +137,14 @@ func getSimilarTasks(readers ProfilesReaders, topSize int) ([]TaskSimilarity, er
 			}
 		}
 
-		if len(result) < topSize {
+		if similarity >= threshold {
 			result = append(result, TaskSimilarity{taskID, similarity})
-		} else if similarity > result[len(result)-1].Similarity {
-			result[len(result)-1] = TaskSimilarity{taskID, similarity}
-		} else {
-			continue
-		}
-
-		for idx := len(result) - 1; idx > 0 && result[idx].Similarity > result[idx-1].Similarity; idx-- {
-			result[idx], result[idx-1] = result[idx-1], result[idx]
 		}
 	}
 	return result, nil
 }
 
-const MAX_RECOMMENDED_POSTS = 5
+const SIMILARITY_THRESHOLD = 0.60
 
 func HandleGetRecommendations(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
@@ -173,7 +166,7 @@ func HandleGetRecommendations(r *http.Request) utils.HandlerResponse {
 		TasksTagsReader:   tasksReader,
 	}
 
-	topList, err := getSimilarTasks(readers, MAX_RECOMMENDED_POSTS)
+	topList, err := getSimilarTasks(readers, SIMILARITY_THRESHOLD)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}

@@ -115,10 +115,10 @@ func TestReadTasksTags(t *testing.T) {
 				last: 0,
 			},
 			want: map[utils.UID]map[utils.UID]float32{
-				2: {1: 0.707107, 2: 0.707107},
-				4: {1: 0.707107, 5: 0.707107},
-				6: {2: 0.707107, 6: 0.707107},
-				7: {7: 0.707107, 8: 0.707107},
+				2: {1: 0.707106, 2: 0.707106},
+				4: {1: 0.894427, 5: 0.447213},
+				6: {2: 0.894427, 6: 0.447213},
+				7: {7: 0.707106, 8: 0.707106},
 			},
 		},
 	}
@@ -140,12 +140,12 @@ func TestReadTasksTags(t *testing.T) {
 
 func TestGetSimilarTasks(t *testing.T) {
 	tests := []struct {
-		name    string
-		readers ProfilesReaders
-		user    string
-		top     int
-		want    []TaskSimilarity
-		err     error
+		name      string
+		readers   ProfilesReaders
+		user      string
+		threshold float32
+		want      []TaskSimilarity
+		err       error
 	}{
 		{
 			name: "hand-made test",
@@ -168,14 +168,14 @@ func TestGetSimilarTasks(t *testing.T) {
 					last: 0,
 				},
 			},
-			top:  3,
-			want: []TaskSimilarity{{2, 0.816496}, {4, 0.612372}, {6, 0.204124}},
-			err:  nil,
+			threshold: 0.60,
+			want:      []TaskSimilarity{{2, 0.816496}, {4, 0.774596}},
+			err:       nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := getSimilarTasks(test.readers, test.top)
+			result, err := getSimilarTasks(test.readers, test.threshold)
 
 			if !cmp.Equal(err, test.err, opt) {
 				t.Fatalf("GetSimilarTasks() error %v, wanted %v", err, test.err)
