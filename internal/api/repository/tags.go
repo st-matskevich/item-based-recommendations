@@ -10,6 +10,11 @@ type Tag struct {
 	Text string    `json:"name"`
 }
 
+type TaskTagLink struct {
+	TaskID utils.UID
+	TagID  utils.UID
+}
+
 type TagsRepository interface {
 	GetTaskTags(taskID utils.UID) ([]Tag, error)
 	SearchTags(request string) ([]Tag, error)
