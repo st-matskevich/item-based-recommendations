@@ -14,6 +14,7 @@ type UserData struct {
 type ProfileRepository interface {
 	GetProfile(userID utils.UID) (*UserData, error)
 	SetProfile(userID utils.UID, profile UserData) error
+	GetLikedTags(userID utils.UID) ([]TaskTagLink, error)
 }
 
 type ProfileSQLRepository struct {
@@ -38,4 +39,35 @@ func (repo *ProfileSQLRepository) GetProfile(userID utils.UID) (*UserData, error
 
 func (repo *ProfileSQLRepository) SetProfile(userID utils.UID, profile UserData) error {
 	return repo.SQLClient.Exec("UPDATE users SET name = $2, is_customer = $3 WHERE user_id = $1", userID, profile.Name, profile.IsCustomer)
+}
+
+func (repo *ProfileSQLRepository) GetLikedTags(userID utils.UID) ([]TaskTagLink, error) {
+	reader, err := repo.SQLClient.Query(
+		`SELECT task_tag.task_id, task_tag.tag_id 
+		FROM likes 
+		JOIN task_tag 
+		ON likes.task_id = task_tag.task_id 
+		AND likes.user_id = $1 AND likes.active = true`, userID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	result := []TaskTagLink{}
+	row := TaskTagLink{}
+	for {
+		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
+		result = append(result, row)
+	}
+
+	return result, nil
 }

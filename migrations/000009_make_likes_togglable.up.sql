@@ -1,0 +1,1 @@
+ALTER TABLE likes ADD active BOOLEAN NOT NULL DEFAULT true;

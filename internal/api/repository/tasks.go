@@ -11,6 +11,8 @@ const (
 	NOT_ASSIGNED_TASKS = "NOT_ASSIGNED"
 	CUSTOMER_TASKS     = "CUSTOMER"
 	DOER_TASKS         = "DOER"
+	LIKED              = "LIKED"
+	RECOMMENDATIONS    = "RECOMMENDATIONS"
 )
 
 type Task struct {
@@ -24,7 +26,10 @@ type Task struct {
 
 type TasksRepository interface {
 	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
+	GetTasksTags(userID utils.UID) ([]TaskTagLink, error)
 	GetTask(taskID utils.UID) (*Task, error)
+	IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error)
+	SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error
 	CreateTask(task Task) (utils.UID, error)
 	CloseTask(taskID utils.UID, doerID utils.UID) error
 }
@@ -52,6 +57,19 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string,
 			JOIN users 
 			ON tasks.customer_id = users.user_id
 			AND tasks.doer_id = $1
+			AND tasks.name LIKE '%' || $2 || '%'
+			ORDER BY tasks.task_id DESC`, userID, request,
+		)
+	case LIKED:
+		return repo.SQLClient.Query(
+			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
+			FROM tasks 
+			JOIN users 
+			ON tasks.customer_id = users.user_id
+			JOIN likes
+			ON tasks.task_id = likes.task_id
+			AND likes.user_id = $1
+			AND likes.active = true
 			AND tasks.name LIKE '%' || $2 || '%'
 			ORDER BY tasks.task_id DESC`, userID, request,
 		)
@@ -114,6 +132,34 @@ func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	return &result, nil
 }
 
+func (repo *TasksSQLRepository) IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error) {
+	reader, err := repo.SQLClient.Query(
+		`SELECT likes.active 
+		FROM likes 
+		WHERE likes.task_id = $1
+		AND likes.user_id = $2`, taskID, userID,
+	)
+	if err != nil {
+		return false, err
+	}
+	defer reader.Close()
+
+	active := false
+	found, err := reader.NextRow(&active)
+	if err != nil {
+		return false, err
+	}
+
+	return found && active, nil
+}
+
+func (repo *TasksSQLRepository) SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error {
+	return repo.SQLClient.Exec(
+		`INSERT INTO likes(user_id, task_id, active) VALUES ($1, $2, $3)
+		ON CONFLICT ON CONSTRAINT likes_user_task DO UPDATE SET active = $3`, userID, taskID, value,
+	)
+}
+
 func (repo *TasksSQLRepository) CreateTask(task Task) (utils.UID, error) {
 	reader, err := repo.SQLClient.Query("INSERT INTO tasks(name, description, customer_id) VALUES ($1, $2, $3) RETURNING task_id", task.Name, task.Description, task.Customer.ID)
 	if err != nil {
@@ -132,4 +178,36 @@ func (repo *TasksSQLRepository) CreateTask(task Task) (utils.UID, error) {
 
 func (repo *TasksSQLRepository) CloseTask(taskID utils.UID, doerID utils.UID) error {
 	return repo.SQLClient.Exec("UPDATE tasks SET doer_id = $2 WHERE task_id = $1", taskID, doerID)
+}
+
+func (repo *TasksSQLRepository) GetTasksTags(userID utils.UID) ([]TaskTagLink, error) {
+	reader, err := repo.SQLClient.Query(
+		`SELECT task_tag.task_id, task_tag.tag_id 
+		FROM likes 
+		RIGHT JOIN task_tag 
+		ON likes.task_id = task_tag.task_id 
+		AND likes.user_id = $1 AND likes.active = true 
+		WHERE likes.user_id IS NULL`, userID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	result := []TaskTagLink{}
+	row := TaskTagLink{}
+	for {
+		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
+		result = append(result, row)
+	}
+
+	return result, nil
 }
