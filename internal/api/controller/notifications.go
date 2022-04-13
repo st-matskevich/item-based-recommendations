@@ -38,32 +38,5 @@ func (controller *NotificationsController) HandleGetNotifications(r *http.Reques
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	for idx, val := range notifications {
-		switch val.Type {
-		case repository.NEW_REPLY_NOTIFICATION:
-			reply, err := controller.RepliesRepo.GetReply(val.TriggerID)
-			if err != nil {
-				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
-			}
-
-			task, err := controller.TasksRepo.GetTask(reply.TaskID)
-			if err != nil {
-				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
-			}
-
-			notifications[idx].Content = NewReplyNotificationContent{
-				Task:  *task,
-				Reply: *reply,
-			}
-		case repository.TASK_CLOSE_NOTIFICATION:
-			task, err := controller.TasksRepo.GetTask(val.TriggerID)
-			if err != nil {
-				return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
-			}
-
-			notifications[idx].Content = task
-		}
-	}
-
 	return utils.MakeHandlerResponse(http.StatusOK, notifications, nil)
 }
