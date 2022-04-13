@@ -42,7 +42,7 @@ type TasksSQLRepository struct {
 }
 
 func (repo *TasksSQLRepository) buildTaskQuery(filter string) string {
-	return `SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL AS closed, likes.active IS NOT NULL AND likes.active AS liked, COUNT(DISTINCT replies.reply_id), JSON_AGG(JSON_BUILD_OBJECT('id', ENCODE(tags.tag_id::text::bytea, 'base64'), 'text', tags.text)), users.user_id, users.name, tasks.created_at
+	return `SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL AS closed, likes.active IS NOT NULL AND likes.active AS liked, COUNT(DISTINCT replies.reply_id), JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', ENCODE(tags.tag_id::text::bytea, 'base64'), 'text', tags.text)), users.user_id, users.name, tasks.created_at
 		FROM tasks 
 		JOIN users 
 		ON tasks.customer_id = users.user_id
