@@ -5,7 +5,6 @@ go 1.17
 
 require (
 	firebase.google.com/go v3.13.0+incompatible
-	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.3
@@ -18,6 +17,7 @@ require (
 	cloud.google.com/go/storage v1.17.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e // indirect

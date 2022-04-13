@@ -1,5 +1,8 @@
 include .env
 
+BINARY_NAME=server.exe
+BINARY_DIR=.\bin
+
 migrate-up:
 	migrate -path migrations -database $(DATABASE_URL) up
 
@@ -12,5 +15,8 @@ migrate-drop:
 migrate-create:
 	migrate create -ext sql -dir migrations -seq $(name)
 
-run:
-	go run .
+build:
+	go build -o $(BINARY_DIR)\$(BINARY_NAME)
+
+run: build 
+	$(BINARY_DIR)\$(BINARY_NAME) 

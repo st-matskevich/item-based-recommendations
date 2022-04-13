@@ -67,7 +67,7 @@ func (controller *RepliesController) HandleGetReplies(r *http.Request) utils.Han
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	task, err := controller.TasksRepo.GetTask(taskID)
+	customerID, err := controller.TasksRepo.GetTaskCustomer(taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
@@ -77,14 +77,14 @@ func (controller *RepliesController) HandleGetReplies(r *http.Request) utils.Han
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	if task.Customer.ID == uid {
+	if customerID == uid {
 		result.Doer, err = controller.RepliesRepo.GetDoerReply(taskID)
 		if err != nil {
 			return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 		}
 	}
 
-	if task.Customer.ID == uid {
+	if customerID == uid {
 		result.All, err = controller.RepliesRepo.GetReplies(taskID)
 		if err != nil {
 			return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
@@ -119,12 +119,12 @@ func (controller *RepliesController) HandleCreateReply(r *http.Request) utils.Ha
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	task, err := controller.TasksRepo.GetTask(taskID)
+	customerID, err := controller.TasksRepo.GetTaskCustomer(taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	err = controller.NotificationsRepo.CreateNotification(task.Customer.ID, repository.NEW_REPLY_NOTIFICATION, replyID)
+	err = controller.NotificationsRepo.CreateNotification(customerID, repository.NEW_REPLY_NOTIFICATION, replyID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
@@ -145,12 +145,12 @@ func (controller *RepliesController) HandleHideReply(r *http.Request) utils.Hand
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	task, err := controller.TasksRepo.GetTask(taskID)
+	customerID, err := controller.TasksRepo.GetTaskCustomer(taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	if task.Customer.ID != uid {
+	if customerID != uid {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), errors.New(utils.INSUFFICIENT_RIGHTS))
 	}
 

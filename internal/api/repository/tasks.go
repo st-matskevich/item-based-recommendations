@@ -16,19 +16,23 @@ const (
 )
 
 type Task struct {
-	ID          utils.UID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	Customer    UserData  `json:"customer"`
-	Closed      bool      `json:"closed"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID           utils.UID        `json:"id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description,omitempty"`
+	Customer     UserData         `json:"customer"`
+	Closed       bool             `json:"closed"`
+	Owns         bool             `json:"owns"`
+	Liked        bool             `json:"liked"`
+	RepliesCount int32            `json:"replies"`
+	Tags         utils.JSONObject `json:"tags"`
+	CreatedAt    time.Time        `json:"createdAt"`
 }
 
 type TasksRepository interface {
 	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
 	GetTasksTags(userID utils.UID) ([]TaskTagLink, error)
-	GetTask(taskID utils.UID) (*Task, error)
-	IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error)
+	GetTask(userID utils.UID, taskID utils.UID) (*Task, error)
+	GetTaskCustomer(taskID utils.UID) (utils.UID, error)
 	SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error
 	CreateTask(task Task) (utils.UID, error)
 	CloseTask(taskID utils.UID, doerID utils.UID) error
@@ -38,51 +42,35 @@ type TasksSQLRepository struct {
 	SQLClient *db.SQLClient
 }
 
-func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string, userID utils.UID) (db.ResponseReader, error) {
-	switch scope {
-	case CUSTOMER_TASKS:
-		return repo.SQLClient.Query(
-			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
-			FROM tasks 
-			JOIN users 
-			ON tasks.customer_id = users.user_id
-			AND tasks.customer_id = $1
-			AND tasks.name LIKE '%' || $2 || '%'
-			ORDER BY tasks.task_id DESC`, userID, request,
-		)
-	case DOER_TASKS:
-		return repo.SQLClient.Query(
-			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
-			FROM tasks 
-			JOIN users 
-			ON tasks.customer_id = users.user_id
-			AND tasks.doer_id = $1
-			AND tasks.name LIKE '%' || $2 || '%'
-			ORDER BY tasks.task_id DESC`, userID, request,
-		)
-	case LIKED:
-		return repo.SQLClient.Query(
-			`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
-			FROM tasks 
-			JOIN users 
-			ON tasks.customer_id = users.user_id
-			JOIN likes
-			ON tasks.task_id = likes.task_id
-			AND likes.user_id = $1
-			AND likes.active = true
-			AND tasks.name LIKE '%' || $2 || '%'
-			ORDER BY tasks.task_id DESC`, userID, request,
-		)
-	}
-	return repo.SQLClient.Query(
-		`SELECT tasks.task_id, tasks.name, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at
+func (repo *TasksSQLRepository) buildTaskQuery(filter string) string {
+	return `SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL AS closed, tasks.customer_id = $1 AS owns, likes.active IS NOT NULL AND likes.active AS liked, COUNT(DISTINCT replies.reply_id), JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', ENCODE(tags.tag_id::text::bytea, 'base64'), 'text', tags.text)), users.user_id, users.name, tasks.created_at
 		FROM tasks 
 		JOIN users 
 		ON tasks.customer_id = users.user_id
-		AND tasks.doer_id IS NULL
-		AND tasks.name LIKE '%' || $1 || '%'
-		ORDER BY tasks.task_id DESC`, request,
-	)
+		LEFT JOIN likes
+		ON likes.task_id = tasks.task_id
+		AND likes.user_id = $1
+		LEFT JOIN replies
+		ON replies.task_id = tasks.task_id
+		LEFT JOIN task_tag
+		ON task_tag.task_id = tasks.task_id
+		LEFT JOIN tags
+		ON task_tag.tag_id = tags.tag_id ` +
+		filter +
+		` GROUP BY tasks.task_id, users.user_id, likes.like_id
+		ORDER BY tasks.task_id DESC`
+}
+
+func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string, userID utils.UID) (db.ResponseReader, error) {
+	switch scope {
+	case CUSTOMER_TASKS:
+		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.customer_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
+	case DOER_TASKS:
+		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.doer_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
+	case LIKED:
+		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE likes.user_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
+	}
+	return repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.doer_id IS NULL AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
 }
 
 func (repo *TasksSQLRepository) GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error) {
@@ -96,7 +84,7 @@ func (repo *TasksSQLRepository) GetTasksFeed(scope string, request string, userI
 	row := Task{}
 
 	for {
-		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Closed, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
+		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Description, &row.Closed, &row.Owns, &row.Liked, &row.RepliesCount, &row.Tags, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -110,21 +98,15 @@ func (repo *TasksSQLRepository) GetTasksFeed(scope string, request string, userI
 	return result, nil
 }
 
-func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
-	reader, err := repo.SQLClient.Query(
-		`SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL, users.user_id, users.name, tasks.created_at  
-		FROM tasks 
-		JOIN users 
-		ON tasks.customer_id = users.user_id
-		AND tasks.task_id = $1`, taskID,
-	)
+func (repo *TasksSQLRepository) GetTask(userID utils.UID, taskID utils.UID) (*Task, error) {
+	reader, err := repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.task_id = $2"), userID, taskID)
 	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
 
 	result := Task{}
-	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Customer.ID, &result.Customer.Name, &result.CreatedAt)
+	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Owns, &result.Liked, &result.RepliesCount, &result.Tags, &result.Customer.ID, &result.Customer.Name, &result.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -132,25 +114,20 @@ func (repo *TasksSQLRepository) GetTask(taskID utils.UID) (*Task, error) {
 	return &result, nil
 }
 
-func (repo *TasksSQLRepository) IsTaskLiked(userID utils.UID, taskID utils.UID) (bool, error) {
-	reader, err := repo.SQLClient.Query(
-		`SELECT likes.active 
-		FROM likes 
-		WHERE likes.task_id = $1
-		AND likes.user_id = $2`, taskID, userID,
-	)
+func (repo *TasksSQLRepository) GetTaskCustomer(taskID utils.UID) (utils.UID, error) {
+	reader, err := repo.SQLClient.Query("SELECT tasks.customer_id FROM tasks WHERE tasks.task_id = $1", taskID)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	defer reader.Close()
 
-	active := false
-	found, err := reader.NextRow(&active)
+	row := utils.UID(0)
+	err = reader.GetRow(&row)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
-	return found && active, nil
+	return row, nil
 }
 
 func (repo *TasksSQLRepository) SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error {

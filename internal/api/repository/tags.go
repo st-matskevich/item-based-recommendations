@@ -7,7 +7,7 @@ import (
 
 type Tag struct {
 	ID   utils.UID `json:"id"`
-	Text string    `json:"name"`
+	Text string    `json:"text"`
 }
 
 type TaskTagLink struct {
@@ -84,7 +84,16 @@ func (repo *TagsSQLRepository) SearchTags(request string) ([]Tag, error) {
 }
 
 func (repo *TagsSQLRepository) CreateTag(tag string) (utils.UID, error) {
-	reader, err := repo.SQLClient.Query("INSERT INTO tags(text) VALUES ($1) RETURNING tag_id", tag)
+	reader, err := repo.SQLClient.Query(
+		`WITH new_tag AS (
+			INSERT INTO tags(text)
+			VALUES ($1)
+			ON CONFLICT (text) DO NOTHING
+			RETURNING tag_id
+		) SELECT COALESCE(
+			(SELECT tag_id FROM new_tag),
+			(SELECT tag_id FROM tags WHERE text = $1)
+		)`, tag)
 	if err != nil {
 		return 0, err
 	}

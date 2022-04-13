@@ -34,3 +34,14 @@ type Route struct {
 type Controller interface {
 	GetRoutes() []Route
 }
+
+type JSONObject string
+
+func (val JSONObject) MarshalJSON() ([]byte, error) {
+	return []byte(val), nil
+}
+
+func (val *JSONObject) UnmarshalJSON(data []byte) error {
+	*val = JSONObject(data)
+	return nil
+}
