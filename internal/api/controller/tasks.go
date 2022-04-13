@@ -15,20 +15,17 @@ import (
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 )
 
+type InputTask struct {
+	Tags []repository.Tag
+	repository.Task
+}
+
 type TasksController struct {
 	TasksRepo         repository.TasksRepository
 	ProfileRepo       repository.ProfileRepository
 	TagsRepo          repository.TagsRepository
 	RepliesRepo       repository.RepliesRepository
 	NotificationsRepo repository.NotificationsRepository
-}
-
-type TaskWrapper struct {
-	*repository.Task
-	Tags         []repository.Tag `json:"tags"`
-	Owns         bool             `json:"owns"`
-	Liked        bool             `json:"liked"`
-	RepliesCount int32            `json:"repliesCount"`
 }
 
 func (controller *TasksController) GetRoutes() []utils.Route {
@@ -66,30 +63,6 @@ func (controller *TasksController) GetRoutes() []utils.Route {
 	}
 }
 
-func (controller *TasksController) buildTaskWrapper(uid utils.UID, task *repository.Task) (*TaskWrapper, error) {
-	var err error
-	wrapper := TaskWrapper{}
-	wrapper.Task = task
-	wrapper.Owns = uid == wrapper.Customer.ID
-
-	wrapper.RepliesCount, err = controller.RepliesRepo.GetRepliesCount(wrapper.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	wrapper.Tags, err = controller.TagsRepo.GetTaskTags(wrapper.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	wrapper.Liked, err = controller.TasksRepo.IsTaskLiked(uid, wrapper.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wrapper, nil
-}
-
 func (controller *TasksController) HandleGetTasksFeed(r *http.Request) utils.HandlerResponse {
 	var err error
 	var tasks []repository.Task
@@ -109,16 +82,7 @@ func (controller *TasksController) HandleGetTasksFeed(r *http.Request) utils.Han
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	result := []TaskWrapper{}
-	for idx := range tasks {
-		wrapper, err := controller.buildTaskWrapper(uid, &tasks[idx])
-		if err != nil {
-			return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
-		}
-		result = append(result, *wrapper)
-	}
-
-	return utils.MakeHandlerResponse(http.StatusOK, result, nil)
+	return utils.MakeHandlerResponse(http.StatusOK, tasks, nil)
 }
 
 func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerResponse {
@@ -129,17 +93,12 @@ func (controller *TasksController) HandleGetTask(r *http.Request) utils.HandlerR
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	task, err := controller.TasksRepo.GetTask(taskID)
+	task, err := controller.TasksRepo.GetTask(uid, taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	wrapper, err := controller.buildTaskWrapper(uid, task)
-	if err != nil {
-		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
-	}
-
-	return utils.MakeHandlerResponse(http.StatusOK, wrapper, nil)
+	return utils.MakeHandlerResponse(http.StatusOK, task, nil)
 }
 
 func (controller *TasksController) LikeTask(r *http.Request) utils.HandlerResponse {
@@ -163,7 +122,7 @@ func (controller *TasksController) LikeTask(r *http.Request) utils.HandlerRespon
 	return utils.MakeHandlerResponse(http.StatusOK, likes, nil)
 }
 
-func validateTask(task *TaskWrapper) error {
+func validateTask(task InputTask) error {
 	if task.Name == "" || task.Description == "" {
 		return errors.New(utils.INVALID_INPUT)
 	}
@@ -185,6 +144,10 @@ func validateTask(task *TaskWrapper) error {
 	}
 
 	for _, tag := range task.Tags {
+		if tag.Text == "" {
+			return errors.New(utils.INVALID_INPUT)
+		}
+
 		if len([]rune(tag.Text)) > 32 {
 			return errors.New(utils.INVALID_INPUT)
 		}
@@ -196,19 +159,19 @@ func validateTask(task *TaskWrapper) error {
 func (controller *TasksController) HandleCreateTask(r *http.Request) utils.HandlerResponse {
 	uid := utils.GetUserID(r.Context())
 
-	input := TaskWrapper{}
+	input := InputTask{}
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 	input.Customer.ID = uid
 
-	err = validateTask(&input)
+	err = validateTask(input)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.BAD_INPUT), err)
 	}
 
-	taskID, err := controller.TasksRepo.CreateTask(*input.Task)
+	taskID, err := controller.TasksRepo.CreateTask(input.Task)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
@@ -245,12 +208,12 @@ func (controller *TasksController) HandleCloseTask(r *http.Request) utils.Handle
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.DECODER_ERROR), err)
 	}
 
-	task, err := controller.TasksRepo.GetTask(taskID)
+	customerID, err := controller.TasksRepo.GetTaskCustomer(taskID)
 	if err != nil {
 		return utils.MakeHandlerResponse(http.StatusInternalServerError, utils.MakeErrorMessage(utils.SQL_ERROR), err)
 	}
 
-	if task.Customer.ID != uid {
+	if customerID != uid {
 		return utils.MakeHandlerResponse(http.StatusBadRequest, utils.MakeErrorMessage(utils.AUTHORIZATION_ERROR), errors.New(utils.INSUFFICIENT_RIGHTS))
 	}
 
@@ -365,7 +328,7 @@ func (controller *TasksController) GetRecommendations(userID utils.UID) ([]repos
 	recommendedTasks := getRecommendedTasks(userVector, tasksVector, float32(threshold))
 	result := []repository.Task{}
 	for _, taskID := range recommendedTasks {
-		task, err := controller.TasksRepo.GetTask(taskID)
+		task, err := controller.TasksRepo.GetTask(userID, taskID)
 		if err != nil {
 			return nil, err
 		}
