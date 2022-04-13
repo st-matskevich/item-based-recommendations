@@ -21,6 +21,7 @@ type Task struct {
 	Description  string           `json:"description,omitempty"`
 	Customer     UserData         `json:"customer"`
 	Closed       bool             `json:"closed"`
+	Owns         bool             `json:"owns"`
 	Liked        bool             `json:"liked"`
 	RepliesCount int32            `json:"replies"`
 	Tags         utils.JSONObject `json:"tags"`
@@ -42,7 +43,7 @@ type TasksSQLRepository struct {
 }
 
 func (repo *TasksSQLRepository) buildTaskQuery(filter string) string {
-	return `SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL AS closed, likes.active IS NOT NULL AND likes.active AS liked, COUNT(DISTINCT replies.reply_id), JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', ENCODE(tags.tag_id::text::bytea, 'base64'), 'text', tags.text)), users.user_id, users.name, tasks.created_at
+	return `SELECT tasks.task_id, tasks.name, tasks.description, tasks.doer_id IS NOT NULL AS closed, tasks.customer_id = $1 AS owns, likes.active IS NOT NULL AND likes.active AS liked, COUNT(DISTINCT replies.reply_id), JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', ENCODE(tags.tag_id::text::bytea, 'base64'), 'text', tags.text)), users.user_id, users.name, tasks.created_at
 		FROM tasks 
 		JOIN users 
 		ON tasks.customer_id = users.user_id
@@ -83,7 +84,7 @@ func (repo *TasksSQLRepository) GetTasksFeed(scope string, request string, userI
 	row := Task{}
 
 	for {
-		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Description, &row.Closed, &row.Liked, &row.RepliesCount, &row.Tags, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
+		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Description, &row.Closed, &row.Owns, &row.Liked, &row.RepliesCount, &row.Tags, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +106,7 @@ func (repo *TasksSQLRepository) GetTask(userID utils.UID, taskID utils.UID) (*Ta
 	defer reader.Close()
 
 	result := Task{}
-	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Liked, &result.RepliesCount, &result.Tags, &result.Customer.ID, &result.Customer.Name, &result.CreatedAt)
+	err = reader.GetRow(&result.ID, &result.Name, &result.Description, &result.Closed, &result.Owns, &result.Liked, &result.RepliesCount, &result.Tags, &result.Customer.ID, &result.Customer.Name, &result.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

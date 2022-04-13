@@ -16,7 +16,7 @@ import (
 )
 
 type InputTask struct {
-	Tags []repository.Tag
+	Tags []repository.Tag `json:"tags"`
 	repository.Task
 }
 
