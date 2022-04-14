@@ -14,6 +14,7 @@ const (
 	DOER_TASKS         = "DOER"
 	LIKED              = "LIKED"
 	RECOMMENDATIONS    = "RECOMMENDATIONS"
+	REPLIED            = "REPLIED"
 )
 
 type Task struct {
@@ -70,7 +71,9 @@ func (repo *TasksSQLRepository) getTasksFeedReader(scope string, request string,
 	case DOER_TASKS:
 		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.doer_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
 	case LIKED:
-		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE likes.user_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
+		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE likes.active IS NOT NULL AND likes.active AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
+	case REPLIED:
+		return repo.SQLClient.Query(repo.buildTaskQuery("WHERE replies.creator_id = $1 AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
 	}
 	return repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.doer_id IS NULL AND tasks.name LIKE '%' || $2 || '%'"), userID, request)
 }
