@@ -3,6 +3,7 @@ package repository
 import (
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/st-matskevich/item-based-recommendations/internal/api/utils"
 	"github.com/st-matskevich/item-based-recommendations/internal/db"
 )
@@ -32,6 +33,7 @@ type TasksRepository interface {
 	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
 	GetTasksTags(userID utils.UID) ([]TaskTagLink, error)
 	GetTask(userID utils.UID, taskID utils.UID) (*Task, error)
+	GetTasks(userID utils.UID, tasksID []utils.UID) ([]Task, error)
 	GetTaskCustomer(taskID utils.UID) (utils.UID, error)
 	SetTaskLike(userID utils.UID, taskID utils.UID, value bool) error
 	CreateTask(task Task) (utils.UID, error)
@@ -112,6 +114,31 @@ func (repo *TasksSQLRepository) GetTask(userID utils.UID, taskID utils.UID) (*Ta
 	}
 
 	return &result, nil
+}
+
+func (repo *TasksSQLRepository) GetTasks(userID utils.UID, tasksID []utils.UID) ([]Task, error) {
+	reader, err := repo.SQLClient.Query(repo.buildTaskQuery("WHERE tasks.task_id = ANY($2)"), userID, pq.Array(tasksID))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	result := []Task{}
+	row := Task{}
+
+	for {
+		ok, err := reader.NextRow(&row.ID, &row.Name, &row.Description, &row.Closed, &row.Owns, &row.Liked, &row.RepliesCount, &row.Tags, &row.Customer.ID, &row.Customer.Name, &row.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
+		result = append(result, row)
+	}
+
+	return result, nil
 }
 
 func (repo *TasksSQLRepository) GetTaskCustomer(taskID utils.UID) (utils.UID, error) {

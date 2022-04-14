@@ -326,14 +326,9 @@ func (controller *TasksController) GetRecommendations(userID utils.UID) ([]repos
 	tasksVector := buildTasksRecommendationsVector(tasksTags)
 
 	recommendedTasks := getRecommendedTasks(userVector, tasksVector, float32(threshold))
-	result := []repository.Task{}
-	for _, taskID := range recommendedTasks {
-		task, err := controller.TasksRepo.GetTask(userID, taskID)
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, *task)
+	result, err := controller.TasksRepo.GetTasks(userID, recommendedTasks)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
