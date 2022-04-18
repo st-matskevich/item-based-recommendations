@@ -24,7 +24,6 @@ type TasksController struct {
 	TasksRepo         repository.TasksRepository
 	ProfileRepo       repository.ProfileRepository
 	TagsRepo          repository.TagsRepository
-	RepliesRepo       repository.RepliesRepository
 	NotificationsRepo repository.NotificationsRepository
 }
 
@@ -317,7 +316,7 @@ func (controller *TasksController) GetRecommendations(userID utils.UID) ([]repos
 		return nil, err
 	}
 
-	tasksTags, err := controller.TasksRepo.GetTasksTags(userID)
+	tasksTags, err := controller.TagsRepo.GetTasksTags(userID)
 	if err != nil {
 		return nil, err
 	}

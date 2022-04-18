@@ -9,7 +9,6 @@ import (
 
 type Notification struct {
 	ID        utils.UID        `json:"id"`
-	TriggerID utils.UID        `json:"-"`
 	Type      int              `json:"type"`
 	Content   utils.JSONObject `json:"content"`
 	CreatedAt time.Time        `json:"createdAt"`

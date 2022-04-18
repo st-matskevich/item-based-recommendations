@@ -16,43 +16,14 @@ type TaskTagLink struct {
 }
 
 type TagsRepository interface {
-	GetTaskTags(taskID utils.UID) ([]Tag, error)
 	SearchTags(request string) ([]Tag, error)
 	CreateTag(tag string) (utils.UID, error)
 	AddTagToTask(taskID utils.UID, tagID utils.UID) error
+	GetTasksTags(userID utils.UID) ([]TaskTagLink, error)
 }
 
 type TagsSQLRepository struct {
 	SQLClient *db.SQLClient
-}
-
-func (repo *TagsSQLRepository) GetTaskTags(taskID utils.UID) ([]Tag, error) {
-	reader, err := repo.SQLClient.Query(
-		`SELECT tags.tag_id, tags.text
-		FROM task_tag JOIN tags 
-		ON task_tag.tag_id = tags.tag_id
-		AND task_tag.task_id = $1`, taskID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	tags := []Tag{}
-	row := Tag{}
-	for {
-		ok, err := reader.NextRow(&row.ID, &row.Text)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			break
-		}
-
-		tags = append(tags, row)
-	}
-
-	return tags, nil
 }
 
 func (repo *TagsSQLRepository) SearchTags(request string) ([]Tag, error) {
@@ -110,4 +81,36 @@ func (repo *TagsSQLRepository) CreateTag(tag string) (utils.UID, error) {
 
 func (repo *TagsSQLRepository) AddTagToTask(taskID utils.UID, tagID utils.UID) error {
 	return repo.SQLClient.Exec("INSERT INTO task_tag(task_id, tag_id) VALUES ($1, $2)", taskID, tagID)
+}
+
+func (repo *TagsSQLRepository) GetTasksTags(userID utils.UID) ([]TaskTagLink, error) {
+	reader, err := repo.SQLClient.Query(
+		`SELECT task_tag.task_id, task_tag.tag_id 
+		FROM likes 
+		RIGHT JOIN task_tag 
+		ON likes.task_id = task_tag.task_id 
+		AND likes.user_id = $1 AND likes.active = true 
+		WHERE likes.user_id IS NULL`, userID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	result := []TaskTagLink{}
+	row := TaskTagLink{}
+	for {
+		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
+		result = append(result, row)
+	}
+
+	return result, nil
 }

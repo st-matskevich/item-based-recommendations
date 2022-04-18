@@ -32,7 +32,6 @@ type Task struct {
 
 type TasksRepository interface {
 	GetTasksFeed(scope string, request string, userID utils.UID) ([]Task, error)
-	GetTasksTags(userID utils.UID) ([]TaskTagLink, error)
 	GetTask(userID utils.UID, taskID utils.UID) (*Task, error)
 	GetTasks(userID utils.UID, tasksID []utils.UID) ([]Task, error)
 	GetTaskCustomer(taskID utils.UID) (utils.UID, error)
@@ -185,36 +184,4 @@ func (repo *TasksSQLRepository) CreateTask(task Task) (utils.UID, error) {
 
 func (repo *TasksSQLRepository) CloseTask(taskID utils.UID, doerID utils.UID) error {
 	return repo.SQLClient.Exec("UPDATE tasks SET doer_id = $2 WHERE task_id = $1", taskID, doerID)
-}
-
-func (repo *TasksSQLRepository) GetTasksTags(userID utils.UID) ([]TaskTagLink, error) {
-	reader, err := repo.SQLClient.Query(
-		`SELECT task_tag.task_id, task_tag.tag_id 
-		FROM likes 
-		RIGHT JOIN task_tag 
-		ON likes.task_id = task_tag.task_id 
-		AND likes.user_id = $1 AND likes.active = true 
-		WHERE likes.user_id IS NULL`, userID,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	result := []TaskTagLink{}
-	row := TaskTagLink{}
-	for {
-		ok, err := reader.NextRow(&row.TaskID, &row.TagID)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			break
-		}
-
-		result = append(result, row)
-	}
-
-	return result, nil
 }
